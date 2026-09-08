@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-cream: #F9F7F2;
+  --navy: #1B3644;
+  --teal: #2D6A6C;
+  --alert-bg: #FEF3E2;
+  --alert-text: #B45309;
+  --risk-bg: #FDECEA;
+  --risk-text: #991B1B;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg-cream);
+  color: var(--navy);
+  -webkit-font-smoothing: antialiased;
+}
