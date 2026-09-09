@@ -41,6 +41,14 @@ export const TRIAGE_STATUS_PILL_CLASS: Record<TriageReviewStatus, string> = {
 
 export type TriageStatusMap = Record<string, TriageReviewStatus>;
 
+/** Stable empty snapshot for useSyncExternalStore (never return a fresh {}). */
+export const EMPTY_TRIAGE_STATUS_MAP: TriageStatusMap = Object.freeze(
+  {},
+) as TriageStatusMap;
+
+let cachedRaw: string | null = null;
+let cachedMap: TriageStatusMap = EMPTY_TRIAGE_STATUS_MAP;
+
 function isStatus(value: unknown): value is TriageReviewStatus {
   return (
     typeof value === "string" &&
@@ -48,27 +56,49 @@ function isStatus(value: unknown): value is TriageReviewStatus {
   );
 }
 
+function parseTriageStatusMap(raw: string): TriageStatusMap {
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== "object") return EMPTY_TRIAGE_STATUS_MAP;
+  const out: TriageStatusMap = {};
+  for (const [id, status] of Object.entries(parsed as Record<string, unknown>)) {
+    if (id && isStatus(status)) out[id] = status;
+  }
+  return Object.keys(out).length === 0 ? EMPTY_TRIAGE_STATUS_MAP : out;
+}
+
 export function readTriageStatusMap(): TriageStatusMap {
-  if (typeof window === "undefined") return {};
+  if (typeof window === "undefined") return EMPTY_TRIAGE_STATUS_MAP;
   try {
     const raw = window.localStorage.getItem(TRIAGE_STATUS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object") return {};
-    const out: TriageStatusMap = {};
-    for (const [id, status] of Object.entries(parsed as Record<string, unknown>)) {
-      if (id && isStatus(status)) out[id] = status;
+    if (!raw) {
+      cachedRaw = null;
+      cachedMap = EMPTY_TRIAGE_STATUS_MAP;
+      return EMPTY_TRIAGE_STATUS_MAP;
     }
-    return out;
+    if (raw === cachedRaw) {
+      return cachedMap;
+    }
+    const map = parseTriageStatusMap(raw);
+    cachedRaw = raw;
+    cachedMap = map;
+    return map;
   } catch {
-    return {};
+    cachedRaw = null;
+    cachedMap = EMPTY_TRIAGE_STATUS_MAP;
+    return EMPTY_TRIAGE_STATUS_MAP;
   }
 }
 
 function writeTriageStatusMap(map: TriageStatusMap): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(TRIAGE_STATUS_STORAGE_KEY, JSON.stringify(map));
+    const stable =
+      Object.keys(map).length === 0 ? EMPTY_TRIAGE_STATUS_MAP : map;
+    const raw = JSON.stringify(stable);
+    // Cache before dispatch so getSnapshot returns a stable reference.
+    cachedRaw = raw;
+    cachedMap = stable;
+    window.localStorage.setItem(TRIAGE_STATUS_STORAGE_KEY, raw);
     window.dispatchEvent(new Event(TRIAGE_STATUS_CHANGE_EVENT));
   } catch {
     // Quota / private mode — ignore.
@@ -85,7 +115,8 @@ export function setTriageStatus(
   status: TriageReviewStatus,
 ): void {
   if (!id) return;
-  const map = readTriageStatusMap();
+  // Clone — never mutate the cached / frozen snapshot.
+  const map = { ...readTriageStatusMap() };
   if (status === DEFAULT_TRIAGE_STATUS) {
     if (!(id in map)) return;
     delete map[id];

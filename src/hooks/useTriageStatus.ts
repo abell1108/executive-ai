@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import type { TriageReviewStatus } from "@/lib/types";
 import {
   DEFAULT_TRIAGE_STATUS,
+  EMPTY_TRIAGE_STATUS_MAP,
   readTriageStatusMap,
   setTriageStatus,
   subscribeTriageStatus,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/triage-status";
 
 function getServerSnapshot(): TriageStatusMap {
-  return {};
+  return EMPTY_TRIAGE_STATUS_MAP;
 }
 
 export function useTriageStatusMap(): TriageStatusMap {
