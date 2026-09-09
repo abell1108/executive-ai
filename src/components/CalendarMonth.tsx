@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { buildMonthGrid, domainToPillKind } from "@/lib/seed-data";
 import type { CalendarDay, CalendarPill, Domain, PillKind } from "@/lib/types";
+import {
+  DaySummaryModal,
+  EventDetailModal,
+  type ModalCalEvent,
+  type ModalTriageItem,
+} from "./EventDetailModal";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -21,20 +27,20 @@ const dotClass: Record<PillKind, string> = {
   rest: "bg-[#D97706]",
 };
 
-type LiveCalEvent = {
-  id: string;
-  title: string;
-  meta: string;
-  domain: Domain;
-  start: string;
-  end: string;
-  allDay?: boolean;
-};
+type LiveCalEvent = ModalCalEvent;
+
+type LiveTriageItem = ModalTriageItem;
 
 type CalendarApiResponse = {
   source?: "live" | "none";
   authenticated?: boolean;
   events?: LiveCalEvent[];
+};
+
+type GmailApiResponse = {
+  source?: "live" | "none";
+  authenticated?: boolean;
+  items?: LiveTriageItem[];
 };
 
 function shortLabel(title: string): string {
@@ -43,18 +49,47 @@ function shortLabel(title: string): string {
   return t.slice(0, 11) + "…";
 }
 
-function eventDayOfMonth(ev: LiveCalEvent, year: number, monthIndex: number): number | null {
+function nyDateKey(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+function eventDayOfMonth(
+  ev: LiveCalEvent,
+  year: number,
+  monthIndex: number,
+): number | null {
   let key: string;
   if (ev.allDay && /^\d{4}-\d{2}-\d{2}$/.test(ev.start)) {
     key = ev.start;
   } else {
-    key = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/New_York",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(ev.start));
+    key = nyDateKey(new Date(ev.start));
   }
+  const [y, m, d] = key.split("-").map(Number);
+  if (y !== year || m !== monthIndex + 1) return null;
+  return d;
+}
+
+/** Parse Gmail Date header → America/New_York YYYY-MM-DD, or null. */
+function triageDayKey(item: LiveTriageItem): string | null {
+  const raw = item.date;
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return nyDateKey(parsed);
+}
+
+function triageDayOfMonth(
+  item: LiveTriageItem,
+  year: number,
+  monthIndex: number,
+): number | null {
+  const key = triageDayKey(item);
+  if (!key) return null;
   const [y, m, d] = key.split("-").map(Number);
   if (y !== year || m !== monthIndex + 1) return null;
   return d;
@@ -90,15 +125,31 @@ function mergeLiveEvents(
   });
 }
 
-export function CalendarMonth() {
+function dayLabel(year: number, monthIndex: number, day: number): string {
+  const d = new Date(Date.UTC(year, monthIndex, day, 16, 0, 0));
+  return d.toLocaleDateString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
   const { status } = useSession();
   const now = useMemo(() => new Date(), []);
   const [cursorDate, setCursorDate] = useState(
     () => new Date(now.getFullYear(), now.getMonth(), 1),
   );
   const [liveEvents, setLiveEvents] = useState<LiveCalEvent[]>([]);
+  const [triageItems, setTriageItems] = useState<LiveTriageItem[]>([]);
   const [source, setSource] = useState<"live" | "none" | "loading">("loading");
   const [authenticated, setAuthenticated] = useState(false);
+
+  const [detailEvent, setDetailEvent] = useState<LiveCalEvent | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [summaryDay, setSummaryDay] = useState<number | null>(null);
 
   const year = cursorDate.getFullYear();
   const monthIndex = cursorDate.getMonth();
@@ -116,20 +167,30 @@ export function CalendarMonth() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/calendar", { cache: "no-store" });
-        const data = (await res.json()) as CalendarApiResponse;
+        const [calRes, mailRes] = await Promise.all([
+          fetch("/api/calendar", { cache: "no-store" }),
+          fetch("/api/gmail", { cache: "no-store" }),
+        ]);
+        const calData = (await calRes.json()) as CalendarApiResponse;
+        const mailData = (await mailRes.json()) as GmailApiResponse;
         if (cancelled) return;
-        setAuthenticated(Boolean(data.authenticated));
-        if (data.source === "live" && Array.isArray(data.events)) {
-          setLiveEvents(data.events);
+        setAuthenticated(Boolean(calData.authenticated));
+        if (calData.source === "live" && Array.isArray(calData.events)) {
+          setLiveEvents(calData.events);
           setSource("live");
         } else {
           setLiveEvents([]);
           setSource("none");
         }
+        if (mailData.source === "live" && Array.isArray(mailData.items)) {
+          setTriageItems(mailData.items);
+        } else {
+          setTriageItems([]);
+        }
       } catch {
         if (!cancelled) {
           setLiveEvents([]);
+          setTriageItems([]);
           setSource("none");
           setAuthenticated(false);
         }
@@ -141,13 +202,57 @@ export function CalendarMonth() {
     };
   }, [status]);
 
+  const filteredEvents = useMemo(
+    () =>
+      domain === "All"
+        ? liveEvents
+        : liveEvents.filter((ev) => ev.domain === domain),
+    [domain, liveEvents],
+  );
+
+  const filteredTriage = useMemo(
+    () =>
+      domain === "All"
+        ? triageItems
+        : triageItems.filter((item) => item.domain === domain),
+    [domain, triageItems],
+  );
+
+  /** day → full LiveCalEvent[] for the visible month (domain-filtered). */
+  const eventsByDay = useMemo(() => {
+    const map = new Map<number, LiveCalEvent[]>();
+    for (const ev of filteredEvents) {
+      const day = eventDayOfMonth(ev, year, monthIndex);
+      if (day == null) continue;
+      const list = map.get(day) ?? [];
+      list.push(ev);
+      map.set(day, list);
+    }
+    return map;
+  }, [filteredEvents, year, monthIndex]);
+
+  /** day → triage items for the visible month (domain-filtered). */
+  const triageByDay = useMemo(() => {
+    const map = new Map<number, LiveTriageItem[]>();
+    for (const item of filteredTriage) {
+      const day = triageDayOfMonth(item, year, monthIndex);
+      if (day == null) continue;
+      const list = map.get(day) ?? [];
+      list.push(item);
+      map.set(day, list);
+    }
+    return map;
+  }, [filteredTriage, year, monthIndex]);
+
   const cells = useMemo(() => {
     const base = buildMonthGrid(year, monthIndex);
-    if (liveEvents.length > 0) {
-      return mergeLiveEvents(base, liveEvents, year, monthIndex);
+    if (filteredEvents.length > 0) {
+      return mergeLiveEvents(base, filteredEvents, year, monthIndex);
     }
-    return base;
-  }, [year, monthIndex, liveEvents]);
+    return base.map((cell) =>
+      cell.outOfMonth ? cell : { ...cell, pills: [], dots: [] },
+    );
+  }, [year, monthIndex, filteredEvents]);
 
   const statusLabel =
     source === "loading"
@@ -158,6 +263,33 @@ export function CalendarMonth() {
           ? "Live · Domains"
           : "Sign in";
 
+  const openEvent = (ev: LiveCalEvent) => {
+    setSummaryDay(null);
+    setDetailEvent(ev);
+    setDetailOpen(true);
+  };
+
+  const openDaySummary = (day: number) => {
+    if (Number.isNaN(day)) return;
+    setDetailOpen(false);
+    setDetailEvent(null);
+    setSummaryDay(day);
+  };
+
+  // Inbox triage for that day/domain: same calendar day + matching event domain
+  const triageForDetail = useMemo(() => {
+    if (!detailEvent) return [] as LiveTriageItem[];
+    const day = eventDayOfMonth(detailEvent, year, monthIndex);
+    if (day == null) return [];
+    const dayItems = triageByDay.get(day) ?? [];
+    return dayItems.filter((item) => item.domain === detailEvent.domain);
+  }, [detailEvent, triageByDay, year, monthIndex]);
+
+  const summaryEvents =
+    summaryDay != null ? (eventsByDay.get(summaryDay) ?? []) : [];
+  const summaryTriage =
+    summaryDay != null ? (triageByDay.get(summaryDay) ?? []) : [];
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
       <div className="flex flex-shrink-0 flex-wrap items-start justify-between gap-3">
@@ -166,7 +298,8 @@ export function CalendarMonth() {
             {cursorLabel}
           </h3>
           <p className="mt-0.5 text-[10px] text-navy/55">
-            {statusLabel} · Month grid · domain event pills · America/New_York
+            {statusLabel} · Month grid · domain event pills
+            {domain !== "All" ? ` · ${domain}` : ""} · triage ✉ · America/New_York
           </p>
         </div>
         <div className="inline-flex items-center gap-1.5" aria-label="Month navigation">
@@ -219,59 +352,149 @@ export function CalendarMonth() {
           role="grid"
           aria-label={cursorLabel}
         >
-          {cells.map((cell, i) => (
-            <div
-              key={`${cell.day}-${i}`}
-              className={
-                cell.outOfMonth
-                  ? "flex h-full min-h-0 flex-col gap-0.5 overflow-hidden rounded-[8px] border border-[rgba(27,54,68,0.08)] bg-[rgba(249,247,242,0.55)] px-1 py-0.5 sm:rounded-[10px] sm:px-1.5 sm:py-1"
-                  : cell.isToday
-                    ? "flex h-full min-h-0 flex-col gap-0.5 overflow-hidden rounded-[8px] border-2 border-teal bg-[#FFFEF8] px-1 py-0.5 shadow-[0_0_0_1px_rgba(45,106,108,0.12),0_2px_6px_rgba(45,106,108,0.1)] sm:rounded-[10px] sm:px-1.5 sm:py-1"
-                    : "flex h-full min-h-0 flex-col gap-0.5 overflow-hidden rounded-[8px] border border-[rgba(27,54,68,0.14)] bg-[#FFFEF8] px-1 py-0.5 shadow-sm sm:rounded-[10px] sm:px-1.5 sm:py-1"
-              }
-            >
-              {cell.isToday ? (
-                <span className="grid h-[18px] w-[18px] place-items-center self-start rounded-full bg-teal text-[10px] font-bold text-white sm:h-[22px] sm:w-[22px] sm:text-[11px]">
-                  {cell.day}
-                </span>
-              ) : (
-                <span
-                  className={
-                    cell.outOfMonth
-                      ? "self-start text-[10px] font-bold leading-none text-navy/30 sm:text-xs"
-                      : "self-start text-[10px] font-bold leading-none text-navy sm:text-xs"
+          {cells.map((cell, i) => {
+            const dayEvents = cell.outOfMonth
+              ? []
+              : (eventsByDay.get(cell.day) ?? []);
+            const dayTriage = cell.outOfMonth
+              ? []
+              : (triageByDay.get(cell.day) ?? []);
+            const hasTriage = dayTriage.length > 0;
+
+            return (
+              <div
+                key={`${cell.day}-${i}`}
+                role={cell.outOfMonth ? undefined : "button"}
+                tabIndex={cell.outOfMonth ? undefined : 0}
+                onClick={() => {
+                  if (cell.outOfMonth) return;
+                  openDaySummary(cell.day);
+                }}
+                onKeyDown={(e) => {
+                  if (cell.outOfMonth) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openDaySummary(cell.day);
                   }
-                >
-                  {cell.day}
-                </span>
-              )}
-              {cell.pills.slice(0, 3).map((p, pi) => (
-                <span
-                  key={`${p.label}-${p.kind}-${pi}`}
-                  className={`block max-w-full flex-shrink-0 truncate rounded-full px-1 py-0.5 text-[7px] font-semibold leading-tight sm:px-1.5 sm:text-[8px] ${pillClass[p.kind]}`}
-                >
-                  {p.label}
-                </span>
-              ))}
-              {cell.dots.length > 0 && (
-                <div className="mt-auto flex flex-wrap gap-[3px] pt-0.5">
-                  {cell.dots.map((d, di) => (
-                    <i
-                      key={di}
-                      className={`block h-[5px] w-[5px] rounded-full ${dotClass[d]}`}
-                      aria-hidden
-                    />
-                  ))}
+                }}
+                className={
+                  cell.outOfMonth
+                    ? "flex h-full min-h-0 flex-col gap-0.5 overflow-hidden rounded-[8px] border border-[rgba(27,54,68,0.08)] bg-[rgba(249,247,242,0.55)] px-1 py-0.5 sm:rounded-[10px] sm:px-1.5 sm:py-1"
+                    : cell.isToday
+                      ? "flex h-full min-h-0 cursor-pointer flex-col gap-0.5 overflow-hidden rounded-[8px] border-2 border-teal bg-[#FFFEF8] px-1 py-0.5 shadow-[0_0_0_1px_rgba(45,106,108,0.12),0_2px_6px_rgba(45,106,108,0.1)] sm:rounded-[10px] sm:px-1.5 sm:py-1"
+                      : "flex h-full min-h-0 cursor-pointer flex-col gap-0.5 overflow-hidden rounded-[8px] border border-[rgba(27,54,68,0.14)] bg-[#FFFEF8] px-1 py-0.5 shadow-sm hover:border-teal/50 sm:rounded-[10px] sm:px-1.5 sm:py-1"
+                }
+              >
+                <div className="flex flex-shrink-0 items-center justify-between gap-0.5">
+                  {cell.isToday ? (
+                    <span className="grid h-[18px] w-[18px] place-items-center rounded-full bg-teal text-[10px] font-bold text-white sm:h-[22px] sm:w-[22px] sm:text-[11px]">
+                      {cell.day}
+                    </span>
+                  ) : (
+                    <span
+                      className={
+                        cell.outOfMonth
+                          ? "text-[10px] font-bold leading-none text-navy/30 sm:text-xs"
+                          : "text-[10px] font-bold leading-none text-navy sm:text-xs"
+                      }
+                    >
+                      {cell.day}
+                    </span>
+                  )}
+                  {hasTriage && (
+                    <span
+                      className="rounded-full bg-[#FDE8C8] px-1 py-px text-[7px] font-bold leading-none text-[#B45309] sm:text-[8px]"
+                      title={`${dayTriage.length} triage item(s)`}
+                      aria-label={`${dayTriage.length} inbox triage items`}
+                    >
+                      ✉
+                    </span>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+                {dayEvents.slice(0, 3).map((ev) => {
+                  const kind = domainToPillKind(ev.domain);
+                  return (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEvent(ev);
+                      }}
+                      className={`block max-w-full flex-shrink-0 truncate rounded-full px-1 py-0.5 text-left text-[7px] font-semibold leading-tight hover:ring-1 hover:ring-teal/40 sm:px-1.5 sm:text-[8px] ${pillClass[kind]}`}
+                      title={ev.title}
+                    >
+                      {shortLabel(ev.title)}
+                    </button>
+                  );
+                })}
+                {cell.dots.length > 0 && (
+                  <div className="mt-auto flex flex-wrap gap-[3px] pt-0.5">
+                    {cell.dots.map((d, di) => (
+                      <i
+                        key={di}
+                        className={`block h-[5px] w-[5px] rounded-full ${dotClass[d]}`}
+                        aria-hidden
+                      />
+                    ))}
+                    {hasTriage && (
+                      <i
+                        className="block h-[5px] w-[5px] rounded-full bg-[#D97706]"
+                        aria-hidden
+                        title="Inbox triage"
+                      />
+                    )}
+                  </div>
+                )}
+                {cell.dots.length === 0 && hasTriage && (
+                  <div className="mt-auto flex flex-wrap gap-[3px] pt-0.5">
+                    <i
+                      className="block h-[5px] w-[5px] rounded-full bg-[#D97706]"
+                      aria-hidden
+                      title="Inbox triage"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
+      {filteredEvents.length === 0 && source !== "loading" && (
+        <p className="flex-shrink-0 rounded-lg border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-2.5 py-2 text-[10px] text-navy/55 sm:text-[11px]">
+          {source === "live" || authenticated
+            ? `No domain calendar events${domain !== "All" ? ` for ${domain}` : ""} this month.`
+            : "Sign in to load domain Calendar."}
+        </p>
+      )}
+
       <p className="flex-shrink-0 pb-1 text-[10px] leading-snug text-navy/55 sm:text-[11px]">
-        Teal = TPFI / DeeperRSC / Myers / KB · Navy = ALO · Amber = SRF
+        Teal = TPFI / DeeperRSC / Myers / KB · Navy = ALO · Amber = SRF / triage ✉
       </p>
+
+      <EventDetailModal
+        open={detailOpen}
+        onClose={() => {
+          setDetailOpen(false);
+          setDetailEvent(null);
+        }}
+        event={detailEvent}
+        triage={triageForDetail}
+      />
+
+      <DaySummaryModal
+        open={summaryDay != null}
+        onClose={() => setSummaryDay(null)}
+        dayLabel={
+          summaryDay != null
+            ? dayLabel(year, monthIndex, summaryDay)
+            : ""
+        }
+        events={summaryEvents}
+        triage={summaryTriage}
+        onSelectEvent={(ev) => openEvent(ev)}
+      />
     </div>
   );
 }

@@ -75,7 +75,7 @@ export function CommandCenter({ googleConfigured }: { googleConfigured: boolean 
           {view === "agenda" ? (
             <AgendaPanel domain={domain} />
           ) : (
-            <CalendarMonth />
+            <CalendarMonth domain={domain} />
           )}
         </section>
 

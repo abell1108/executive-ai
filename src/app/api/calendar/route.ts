@@ -10,6 +10,7 @@ type CalEvent = {
   start?: { dateTime?: string; date?: string; timeZone?: string };
   end?: { dateTime?: string; date?: string; timeZone?: string };
   location?: string;
+  htmlLink?: string;
 };
 
 function monthBoundsUTC(now = new Date()): { timeMin: string; timeMax: string } {
@@ -126,6 +127,9 @@ export async function GET() {
         start,
         end,
         allDay,
+        description: ev.description || undefined,
+        location: ev.location || undefined,
+        htmlLink: ev.htmlLink || undefined,
       });
     }
 
