@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import type { Domain } from "@/lib/types";
+import { domainDisplayName } from "@/lib/domain-label";
 import {
   formatUpdatedAt,
   useLiveRefresh,
@@ -576,7 +577,7 @@ export function HomeDashboard() {
                       : "rounded-full border border-[rgba(27,54,68,0.14)] bg-cream px-2.5 py-1 text-[11px] font-semibold text-navy no-underline hover:border-teal hover:text-teal"
                   }
                 >
-                  {d}
+                  {domainDisplayName(d)}
                 </Link>
               ))}
             </div>

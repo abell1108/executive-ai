@@ -71,7 +71,7 @@ export default function SettingsPage() {
           <code className="text-xs">GOOGLE_CLIENT_ID</code> /{" "}
           <code className="text-xs">GOOGLE_CLIENT_SECRET</code> are set in
           Vercel, Sign in with Google is available above. Once signed in,
-          Inbox and Calendar show live domain-labeled items only (TPFI, DeeperRSC,
+          Inbox and Calendar show live domain-labeled items only (TPFI, DRSC,
           Myers, ALO, KB, SRF).
         </div>
       </main>

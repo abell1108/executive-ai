@@ -15,6 +15,7 @@ import {
   type ModalTriageItem,
 } from "./EventDetailModal";
 import { TriageDetailModal } from "./TriageDetailModal";
+import { domainDisplayName } from "@/lib/domain-label";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -347,7 +348,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
           </h3>
           <p className="mt-0.5 text-[10px] text-navy/55">
             {statusLabel} · Month grid · event + triage pills
-            {domain !== "All" ? ` · ${domain}` : ""} · America/New_York
+            {domain !== "All" ? ` · ${domainDisplayName(domain)}` : ""} · America/New_York
             {updatedLabel ? ` · ${updatedLabel}` : ""}
             {refreshing && !updatedLabel ? " · Refreshing…" : ""}
           </p>
@@ -553,13 +554,13 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
       {filteredEvents.length === 0 && source !== "loading" && (
         <p className="flex-shrink-0 rounded-lg border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-2.5 py-2 text-[10px] text-navy/55 sm:text-[11px]">
           {source === "live" || source === "standing" || authenticated
-            ? `No domain calendar events${domain !== "All" ? ` for ${domain}` : ""} this month.`
+            ? `No domain calendar events${domain !== "All" ? ` for ${domainDisplayName(domain)}` : ""} this month.`
             : "Sign in to load domain Calendar."}
         </p>
       )}
 
       <p className="flex-shrink-0 pb-1 text-[10px] leading-snug text-navy/55 sm:text-[11px]">
-        Teal = TPFI / DeeperRSC / Myers / KB · Navy = ALO · Amber outline = inbox triage
+        Teal = TPFI / DRSC / Myers / KB · Navy = ALO · Amber outline = inbox triage
       </p>
 
       <EventDetailModal

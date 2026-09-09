@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { RULE_TAGS, WEEK_SUB, nextAloTargetIso } from "@/lib/seed-data";
 import type { AgendaDay, AgendaEvent, Domain } from "@/lib/types";
+import { domainDisplayName } from "@/lib/domain-label";
 import {
   formatUpdatedAt,
   useLiveRefresh,
@@ -259,7 +260,7 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <p className="min-w-0 flex-1 text-xs text-navy/55">
           {statusLabel} · {weekSub}
-          {domain !== "All" ? ` · filter: ${domain}` : ""}
+          {domain !== "All" ? ` · filter: ${domainDisplayName(domain)}` : ""}
           {updatedLabel ? ` · ${updatedLabel}` : ""}
           {refreshing && !updatedLabel ? " · Refreshing…" : ""}
         </p>
@@ -289,7 +290,7 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
             {source === "loading"
               ? "Loading domain agenda…"
               : source === "live" || source === "standing" || authenticated
-                ? `No domain agenda items${domain !== "All" ? ` for ${domain}` : ""} this week.`
+                ? `No domain agenda items${domain !== "All" ? ` for ${domainDisplayName(domain)}` : ""} this week.`
                 : "Sign in to load domain Calendar."}
           </p>
         )}
@@ -334,7 +335,7 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
                   }
                 >
                   {ev.meta}
-                  {ev.domain ? ` · ${ev.domain}` : ""}
+                  {ev.domain ? ` · ${domainDisplayName(ev.domain)}` : ""}
                 </div>
               </div>
             ))}

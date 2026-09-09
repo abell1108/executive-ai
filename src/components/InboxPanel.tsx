@@ -9,6 +9,7 @@ import {
   TRIAGE_STATUS_ORDER,
   TRIAGE_STATUS_PILL_CLASS,
 } from "@/lib/triage-status";
+import { domainDisplayName } from "@/lib/domain-label";
 import { useTriageStatusMap } from "@/hooks/useTriageStatus";
 import {
   formatUpdatedAt,
@@ -116,7 +117,7 @@ export function InboxPanel({ domain }: { domain: Domain }) {
           {statusLabel}
           {" · "}
           domain labels only
-          {domain !== "All" ? ` · ${domain}` : ""}
+          {domain !== "All" ? ` · ${domainDisplayName(domain)}` : ""}
           {updatedLabel ? ` · ${updatedLabel}` : ""}
           {refreshing && !updatedLabel ? " · Refreshing…" : ""}
         </p>
@@ -206,7 +207,7 @@ export function InboxPanel({ domain }: { domain: Domain }) {
             className="flex min-w-0 flex-1 items-start gap-2 text-left"
           >
             <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
-              {item.domain}
+              {domainDisplayName(item.domain)}
             </span>
             <div className="min-w-0 flex-1">
               <strong className="block text-xs font-semibold text-navy group-hover:text-teal">

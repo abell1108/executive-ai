@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Domain } from "@/lib/types";
 import { DOMAINS } from "@/lib/seed-data";
+import { domainDisplayName } from "@/lib/domain-label";
 
 export function Header({
   activeDomain,
@@ -61,7 +62,7 @@ export function Header({
                 : "flex-shrink-0 rounded-full border border-[rgba(27,54,68,0.12)] bg-white px-3.5 py-1.5 text-xs font-semibold text-navy hover:border-teal hover:text-teal"
             }
           >
-            {d}
+            {domainDisplayName(d)}
           </button>
         ))}
       </nav>

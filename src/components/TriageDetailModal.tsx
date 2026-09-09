@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ModalTriageItem } from "./EventDetailModal";
 import { TriageStatusPill } from "./TriageStatusPill";
+import { domainDisplayName } from "@/lib/domain-label";
 
 type DetailResponse = {
   item?: ModalTriageItem;
@@ -116,7 +117,7 @@ export function TriageDetailModal({
           <div className="min-w-0">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-[rgba(45,106,108,0.12)] px-2.5 py-0.5 text-[10px] font-bold text-teal">
-                {item.domain}
+                {domainDisplayName(item.domain)}
               </span>
               <span className="rounded-full border border-[#D97706]/40 bg-[#FFF8EE] px-2 py-0.5 text-[10px] font-semibold text-[#B45309]">
                 Inbox triage

@@ -83,3 +83,19 @@ export function inferDomain(text: string): LabeledDomain | null {
 export function isDomainRelated(text: string): boolean {
   return inferDomain(text) !== null;
 }
+
+/** Short UI label for a domain id (internal id stays DeeperRSC). */
+export function domainDisplayName(d: string): string {
+  if (d === "DeeperRSC") return "DRSC";
+  return d;
+}
+
+/**
+ * Map URL / chip aliases to the canonical Domain id used by filtering.
+ * Accepts DRSC (and common typo DeepRSC) → DeeperRSC.
+ */
+export function canonicalizeDomainParam(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw === "DRSC" || raw === "DeepRSC") return "DeeperRSC";
+  return raw;
+}

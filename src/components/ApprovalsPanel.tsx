@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ApprovalItem, ApprovalStatus, Domain } from "@/lib/types";
+import { domainDisplayName } from "@/lib/domain-label";
 
 type LocalApproval = ApprovalItem & { status: ApprovalStatus };
 
@@ -74,7 +75,7 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
                 {item.title}
               </strong>
               <div className="mt-0.5 text-[10px] text-[rgba(153,27,27,0.7)]">
-                {item.domain}
+                {domainDisplayName(item.domain)}
                 {item.meta ? ` · ${item.meta}` : ""}
               </div>
               {item.status === "pending" && (
