@@ -12,6 +12,7 @@ export function inferDomain(text: string): LabeledDomain | null {
 
   // ALO — Alpha Kappa Omega / chapter
   if (
+    /\balo\s+chapter\b/.test(t) ||
     /\balo\b/.test(t) ||
     t.includes("alpha kappa omega") ||
     t.includes("alpha kappa") ||

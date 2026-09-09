@@ -16,7 +16,7 @@ type LiveCalEvent = {
 };
 
 type CalendarApiResponse = {
-  source?: "live" | "none";
+  source?: "live" | "standing" | "none";
   authenticated?: boolean;
   events?: LiveCalEvent[];
 };
@@ -91,6 +91,17 @@ function currentWeekKeysET(now = new Date()): string[] {
   return keys;
 }
 
+
+/** ISO timeMin/timeMax covering the current ET week (Sun–Sat) with a day of pad. */
+function weekQueryRangeET(now = new Date()): { timeMin: string; timeMax: string } {
+  const keys = currentWeekKeysET(now);
+  // keys are YYYY-MM-DD in ET; pad one day on each side
+  const start = new Date(keys[0] + "T04:00:00.000Z");
+  const end = new Date(keys[6] + "T04:00:00.000Z");
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+}
+
 function weekSubtitle(weekKeys: string[]): string {
   if (weekKeys.length < 7) return WEEK_SUB;
   const start = new Date(weekKeys[0] + "T16:00:00Z");
@@ -150,7 +161,7 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
   const { status } = useSession();
   const [liveDays, setLiveDays] = useState<AgendaDay[]>([]);
   const [weekSub, setWeekSub] = useState(WEEK_SUB);
-  const [source, setSource] = useState<"live" | "none" | "loading">("loading");
+  const [source, setSource] = useState<"live" | "standing" | "none" | "loading">("loading");
   const [authenticated, setAuthenticated] = useState(false);
   const [aloIso, setAloIso] = useState(nextAloTargetIso());
   const [showCountdown, setShowCountdown] = useState(false);
@@ -161,22 +172,31 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
 
     async function load() {
       try {
-        const res = await fetch("/api/calendar", { cache: "no-store" });
+        const weekKeys = currentWeekKeysET();
+        const todayKey = nyDateKey(new Date());
+        const { timeMin, timeMax } = weekQueryRangeET();
+        const qs = new URLSearchParams({ timeMin, timeMax });
+        const res = await fetch(`/api/calendar?${qs}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
         const data = (await res.json()) as CalendarApiResponse;
         if (cancelled) return;
 
-        const weekKeys = currentWeekKeysET();
-        const todayKey = nyDateKey(new Date());
         setWeekSub(weekSubtitle(weekKeys));
         setAuthenticated(Boolean(data.authenticated));
 
-        if (data.source === "live" && Array.isArray(data.events)) {
-          const grouped = groupLiveIntoDays(data.events, weekKeys, todayKey);
-          setLiveDays(grouped);
-          setSource("live");
+        const usable =
+          (data.source === "live" || data.source === "standing") &&
+          Array.isArray(data.events);
 
-          const alo = data.events.find(
-            (e) => e.domain === "ALO" || /alo|chapter/i.test(e.title),
+        if (usable) {
+          const grouped = groupLiveIntoDays(data.events!, weekKeys, todayKey);
+          setLiveDays(grouped);
+          setSource(data.source === "standing" ? "standing" : "live");
+
+          const alo = data.events!.find(
+            (e) => e.domain === "ALO" || /alo\s+chapter|alo|chapter/i.test(e.title),
           );
           if (alo?.start) {
             setAloIso(
@@ -226,9 +246,11 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
       ? "Loading…"
       : source === "live"
         ? "Live · Domains"
-        : authenticated
-          ? "Live · Domains"
-          : "Sign in";
+        : source === "standing"
+          ? "Standing ALO · Domains"
+          : authenticated
+            ? "Live · Domains"
+            : "Sign in";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -241,7 +263,7 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
           <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-3 py-4 text-sm text-navy/55">
             {source === "loading"
               ? "Loading domain agenda…"
-              : source === "live" || authenticated
+              : source === "live" || source === "standing" || authenticated
                 ? `No domain agenda items${domain !== "All" ? ` for ${domain}` : ""} this week.`
                 : "Sign in to load domain Calendar."}
           </p>

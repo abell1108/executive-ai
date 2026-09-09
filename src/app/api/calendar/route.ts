@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { listAloEventsInRange, type AloStandingEvent } from "@/lib/alo-schedule";
 import { authOptions, isGoogleConfigured } from "@/lib/auth";
 import { inferDomain } from "@/lib/domain-label";
 
@@ -13,8 +14,22 @@ type CalEvent = {
   htmlLink?: string;
 };
 
-function monthBoundsUTC(now = new Date()): { timeMin: string; timeMax: string } {
-  // Use America/New_York calendar month for the query window
+type ApiCalEvent = {
+  id: string;
+  title: string;
+  meta: string;
+  domain: NonNullable<ReturnType<typeof inferDomain>>;
+  start: string;
+  end: string;
+  allDay: boolean;
+  description?: string;
+  location?: string;
+  htmlLink?: string;
+  standing?: boolean;
+};
+
+/** Start of current calendar month in America/New_York → +8 months. */
+function defaultWindowET(now = new Date()): { timeMin: string; timeMax: string } {
   const ny = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric",
@@ -22,8 +37,9 @@ function monthBoundsUTC(now = new Date()): { timeMin: string; timeMax: string } 
     day: "2-digit",
   }).format(now); // YYYY-MM-DD
   const [y, m] = ny.split("-").map(Number);
-  const timeMin = new Date(Date.UTC(y, m - 1, 1, 4, 0, 0)); // ~midnight ET
-  const timeMax = new Date(Date.UTC(y, m, 1, 4, 0, 0));
+  // ~midnight ET on the 1st (UTC+4 approx covers EDT/EST boundary)
+  const timeMin = new Date(Date.UTC(y, m - 1, 1, 4, 0, 0));
+  const timeMax = new Date(Date.UTC(y, m - 1 + 8, 1, 4, 0, 0));
   return { timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() };
 }
 
@@ -48,15 +64,94 @@ function formatEventMeta(ev: CalEvent, allDay: boolean): string {
   }
 }
 
-export async function GET() {
+function nyDateKeyFromIso(iso: string, allDay?: boolean): string {
+  if (allDay && /^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+function titlesMatchAlo(a: string, b: string): boolean {
+  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+  return norm(a) === norm(b);
+}
+
+/** Dedupe standing ALO vs Google when same day + same title. */
+function mergeStanding(
+  googleEvents: ApiCalEvent[],
+  standing: AloStandingEvent[],
+): ApiCalEvent[] {
+  const merged: ApiCalEvent[] = [...googleEvents];
+  for (const alo of standing) {
+    const already = googleEvents.some(
+      (g) =>
+        nyDateKeyFromIso(g.start, g.allDay) === nyDateKeyFromIso(alo.start) &&
+        titlesMatchAlo(g.title, alo.title),
+    );
+    if (already) continue;
+    merged.push({
+      id: alo.id,
+      title: alo.title,
+      meta: alo.meta,
+      domain: "ALO",
+      start: alo.start,
+      end: alo.end,
+      allDay: false,
+      description: alo.description,
+      standing: true,
+    });
+  }
+  merged.sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+  );
+  return merged;
+}
+
+function parseWindow(req: NextRequest): { timeMin: string; timeMax: string } {
+  const sp = req.nextUrl.searchParams;
+  const qMin = sp.get("timeMin");
+  const qMax = sp.get("timeMax");
+  const defaults = defaultWindowET();
+  const timeMin = qMin && !Number.isNaN(Date.parse(qMin)) ? qMin : defaults.timeMin;
+  const timeMax = qMax && !Number.isNaN(Date.parse(qMax)) ? qMax : defaults.timeMax;
+  return { timeMin, timeMax };
+}
+
+function standingOnlyResponse(
+  timeMin: string,
+  timeMax: string,
+  extras: {
+    configured: boolean;
+    authenticated: boolean;
+    message?: string;
+  },
+) {
+  const standing = listAloEventsInRange(timeMin, timeMax);
+  const events = mergeStanding([], standing);
+  return NextResponse.json({
+    configured: extras.configured,
+    authenticated: extras.authenticated,
+    source: "standing" as const,
+    overlay: "standing-alo" as const,
+    message: extras.message,
+    timeMin,
+    timeMax,
+    events,
+  });
+}
+
+export async function GET(req: NextRequest) {
+  const { timeMin, timeMax } = parseWindow(req);
+
   try {
     if (!isGoogleConfigured()) {
-      return NextResponse.json({
+      return standingOnlyResponse(timeMin, timeMax, {
         configured: false,
         authenticated: false,
-        source: "none" as const,
-        message: "Connect Google to sync Calendar.",
-        events: [],
+        message: "Connect Google to sync Calendar. Standing ALO schedule included.",
       });
     }
 
@@ -64,22 +159,19 @@ export async function GET() {
     const accessToken = (session as { accessToken?: string } | null)?.accessToken;
 
     if (!session || !accessToken) {
-      return NextResponse.json({
+      return standingOnlyResponse(timeMin, timeMax, {
         configured: true,
         authenticated: false,
-        source: "none" as const,
-        message: "Sign in required.",
-        events: [],
+        message: "Sign in required. Standing ALO schedule included.",
       });
     }
 
-    const { timeMin, timeMax } = monthBoundsUTC();
     const params = new URLSearchParams({
       timeMin,
       timeMax,
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "80",
+      maxResults: "250",
     });
 
     const res = await fetch(
@@ -91,27 +183,31 @@ export async function GET() {
     );
 
     if (res.status === 401 || res.status === 403) {
-      return NextResponse.json({
+      return standingOnlyResponse(timeMin, timeMax, {
         configured: true,
         authenticated: false,
-        source: "none" as const,
-        message: "Calendar token expired or insufficient scope — re-sign in.",
-        events: [],
+        message:
+          "Calendar token expired or insufficient scope — re-sign in. Standing ALO schedule included.",
       });
     }
 
     if (!res.ok) {
+      const standing = listAloEventsInRange(timeMin, timeMax);
+      const events = mergeStanding([], standing);
       return NextResponse.json({
         configured: true,
         authenticated: true,
         source: "live" as const,
-        message: `Calendar list failed (${res.status}).`,
-        events: [],
+        overlay: "standing-alo" as const,
+        message: `Calendar list failed (${res.status}). Standing ALO schedule included.`,
+        timeMin,
+        timeMax,
+        events,
       });
     }
 
     const data = (await res.json()) as { items?: CalEvent[] };
-    const events = [];
+    const googleEvents: ApiCalEvent[] = [];
     for (const ev of data.items ?? []) {
       const title = ev.summary || "(no title)";
       const allDay = Boolean(ev.start?.date && !ev.start?.dateTime);
@@ -119,7 +215,7 @@ export async function GET() {
       const end = ev.end?.dateTime || ev.end?.date || "";
       const domain = inferDomain(`${title} ${ev.description ?? ""}`);
       if (!domain) continue;
-      events.push({
+      googleEvents.push({
         id: ev.id,
         title,
         meta: formatEventMeta(ev, allDay),
@@ -133,19 +229,23 @@ export async function GET() {
       });
     }
 
+    const standing = listAloEventsInRange(timeMin, timeMax);
+    const events = mergeStanding(googleEvents, standing);
+
     return NextResponse.json({
       configured: true,
       authenticated: true,
       source: "live" as const,
+      overlay: "standing-alo" as const,
+      timeMin,
+      timeMax,
       events,
     });
   } catch {
-    return NextResponse.json({
+    return standingOnlyResponse(timeMin, timeMax, {
       configured: isGoogleConfigured(),
       authenticated: false,
-      source: "none" as const,
-      message: "Calendar request failed.",
-      events: [],
+      message: "Calendar request failed. Standing ALO schedule included.",
     });
   }
 }

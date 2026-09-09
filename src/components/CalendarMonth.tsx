@@ -38,7 +38,7 @@ type LiveCalEvent = ModalCalEvent;
 type LiveTriageItem = ModalTriageItem;
 
 type CalendarApiResponse = {
-  source?: "live" | "none";
+  source?: "live" | "standing" | "none";
   authenticated?: boolean;
   events?: LiveCalEvent[];
 };
@@ -101,6 +101,17 @@ function triageDayOfMonth(
   return d;
 }
 
+
+/** Visible month ± 7 days pad as ISO timeMin/timeMax (UTC approx for ET month). */
+function monthQueryRange(year: number, monthIndex: number): {
+  timeMin: string;
+  timeMax: string;
+} {
+  const timeMin = new Date(Date.UTC(year, monthIndex, 1 - 7, 4, 0, 0));
+  const timeMax = new Date(Date.UTC(year, monthIndex + 1, 1 + 7, 4, 0, 0));
+  return { timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() };
+}
+
 function mergeLiveEvents(
   base: CalendarDay[],
   events: LiveCalEvent[],
@@ -150,7 +161,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
   );
   const [liveEvents, setLiveEvents] = useState<LiveCalEvent[]>([]);
   const [triageItems, setTriageItems] = useState<LiveTriageItem[]>([]);
-  const [source, setSource] = useState<"live" | "none" | "loading">("loading");
+  const [source, setSource] = useState<"live" | "standing" | "none" | "loading">("loading");
   const [authenticated, setAuthenticated] = useState(false);
 
   const [detailEvent, setDetailEvent] = useState<LiveCalEvent | null>(null);
@@ -176,17 +187,28 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     let cancelled = false;
     async function load() {
       try {
+        const { timeMin, timeMax } = monthQueryRange(year, monthIndex);
+        const calQs = new URLSearchParams({ timeMin, timeMax });
         const [calRes, mailRes] = await Promise.all([
-          fetch("/api/calendar", { cache: "no-store" }),
-          fetch("/api/gmail", { cache: "no-store" }),
+          fetch(`/api/calendar?${calQs}`, {
+            cache: "no-store",
+            credentials: "same-origin",
+          }),
+          fetch("/api/gmail", {
+            cache: "no-store",
+            credentials: "same-origin",
+          }),
         ]);
         const calData = (await calRes.json()) as CalendarApiResponse;
         const mailData = (await mailRes.json()) as GmailApiResponse;
         if (cancelled) return;
         setAuthenticated(Boolean(calData.authenticated));
-        if (calData.source === "live" && Array.isArray(calData.events)) {
-          setLiveEvents(calData.events);
-          setSource("live");
+        const usable =
+          (calData.source === "live" || calData.source === "standing") &&
+          Array.isArray(calData.events);
+        if (usable) {
+          setLiveEvents(calData.events!);
+          setSource(calData.source === "standing" ? "standing" : "live");
         } else {
           setLiveEvents([]);
           setSource("none");
@@ -209,7 +231,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, year, monthIndex]);
 
   const filteredEvents = useMemo(
     () =>
@@ -268,9 +290,11 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
       ? "Loading…"
       : source === "live"
         ? "Live · Domains"
-        : authenticated
-          ? "Live · Domains"
-          : "Sign in";
+        : source === "standing"
+          ? "Standing ALO · Domains"
+          : authenticated
+            ? "Live · Domains"
+            : "Sign in";
 
   const openEvent = (ev: LiveCalEvent) => {
     setSummaryDay(null);
@@ -498,7 +522,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
 
       {filteredEvents.length === 0 && source !== "loading" && (
         <p className="flex-shrink-0 rounded-lg border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-2.5 py-2 text-[10px] text-navy/55 sm:text-[11px]">
-          {source === "live" || authenticated
+          {source === "live" || source === "standing" || authenticated
             ? `No domain calendar events${domain !== "All" ? ` for ${domain}` : ""} this month.`
             : "Sign in to load domain Calendar."}
         </p>
