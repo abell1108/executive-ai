@@ -107,7 +107,8 @@ export async function GET() {
         const subject = header(headers, "Subject") || "(no subject)";
         const from = header(headers, "From");
         const date = header(headers, "Date");
-        const domain = inferDomain(`${subject} ${msg.snippet ?? ""} ${from}`);
+        const snippet = (msg.snippet ?? "").trim();
+        const domain = inferDomain(`${subject} ${snippet} ${from}`);
         if (!domain) return null;
         return {
           id: msg.id,
@@ -116,6 +117,7 @@ export async function GET() {
           meta: formatMeta(from, date),
           from: from || undefined,
           date: date || undefined,
+          notes: snippet || undefined,
         };
       }),
     );

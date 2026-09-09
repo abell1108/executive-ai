@@ -10,6 +10,7 @@ import {
   type ModalCalEvent,
   type ModalTriageItem,
 } from "./EventDetailModal";
+import { TriageDetailModal } from "./TriageDetailModal";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -170,6 +171,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
   const [summaryHighlightTriageId, setSummaryHighlightTriageId] = useState<
     string | null
   >(null);
+  const [triageDetail, setTriageDetail] = useState<LiveTriageItem | null>(null);
 
   const year = cursorDate.getFullYear();
   const monthIndex = cursorDate.getMonth();
@@ -310,9 +312,12 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     setSummaryDay(day);
   };
 
-  const openTriage = (day: number, item: LiveTriageItem) => {
-    const id = item.id ?? item.title;
-    openDaySummary(day, id);
+  const openTriage = (_day: number, item: LiveTriageItem) => {
+    setTriageDetail(item);
+  };
+
+  const openTriageDetail = (item: LiveTriageItem) => {
+    setTriageDetail(item);
   };
 
   // Inbox triage for that day/domain: same calendar day + matching event domain
@@ -540,6 +545,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
         }}
         event={detailEvent}
         triage={triageForDetail}
+        onSelectTriage={openTriageDetail}
       />
 
       <DaySummaryModal
@@ -556,7 +562,14 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
         events={summaryEvents}
         triage={summaryTriage}
         onSelectEvent={(ev) => openEvent(ev)}
+        onSelectTriage={openTriageDetail}
         highlightTriageId={summaryHighlightTriageId}
+      />
+
+      <TriageDetailModal
+        open={triageDetail != null}
+        onClose={() => setTriageDetail(null)}
+        item={triageDetail}
       />
     </div>
   );

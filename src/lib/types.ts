@@ -30,6 +30,11 @@ export interface InboxItem {
   domain: Domain;
   title: string;
   meta: string;
+  id?: string;
+  from?: string;
+  date?: string;
+  /** Gmail snippet or body preview for triage detail. */
+  notes?: string;
 }
 
 export interface ApprovalItem {

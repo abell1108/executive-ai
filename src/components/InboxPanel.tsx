@@ -3,8 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { Domain, InboxItem } from "@/lib/types";
+import { TriageDetailModal } from "./TriageDetailModal";
+import type { ModalTriageItem } from "./EventDetailModal";
 
-type LiveInboxItem = InboxItem & { id?: string; from?: string; date?: string };
+type LiveInboxItem = InboxItem & {
+  id?: string;
+  from?: string;
+  date?: string;
+  notes?: string;
+};
 
 type GmailApiResponse = {
   configured?: boolean;
@@ -18,6 +25,7 @@ export function InboxPanel({ domain }: { domain: Domain }) {
   const [liveItems, setLiveItems] = useState<LiveInboxItem[]>([]);
   const [source, setSource] = useState<"live" | "none" | "loading">("loading");
   const [authenticated, setAuthenticated] = useState(false);
+  const [selected, setSelected] = useState<ModalTriageItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,21 +102,45 @@ export function InboxPanel({ domain }: { domain: Domain }) {
         </p>
       )}
       {items.map((item, i) => (
-        <div
+        <button
           key={item.id ?? `${item.title}-${i}`}
-          className="flex items-start gap-2 border-b border-[rgba(27,54,68,0.12)] py-1.5 last:border-b-0 last:pb-0"
+          type="button"
+          onClick={() =>
+            setSelected({
+              id: item.id,
+              domain: item.domain,
+              title: item.title,
+              meta: item.meta,
+              from: item.from,
+              date: item.date,
+              notes: item.notes,
+            })
+          }
+          className="group flex w-full items-start gap-2 border-b border-[rgba(27,54,68,0.12)] py-1.5 text-left last:border-b-0 last:pb-0 hover:bg-[rgba(45,106,108,0.04)]"
         >
           <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
             {item.domain}
           </span>
-          <div>
-            <strong className="block text-xs font-semibold text-navy">
+          <div className="min-w-0 flex-1">
+            <strong className="block text-xs font-semibold text-navy group-hover:text-teal">
               {item.title}
             </strong>
             <div className="mt-0.5 text-[10px] text-navy/55">{item.meta}</div>
           </div>
-        </div>
+          <span
+            className="mt-0.5 flex-shrink-0 text-navy/30 group-hover:text-teal"
+            aria-hidden
+          >
+            ›
+          </span>
+        </button>
       ))}
+
+      <TriageDetailModal
+        open={selected != null}
+        onClose={() => setSelected(null)}
+        item={selected}
+      />
     </div>
   );
 }

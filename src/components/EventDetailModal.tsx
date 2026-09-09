@@ -23,6 +23,7 @@ export type ModalTriageItem = {
   meta: string;
   from?: string;
   date?: string;
+  notes?: string;
 };
 
 function formatDateTimeET(ev: ModalCalEvent): string {
@@ -78,16 +79,79 @@ function fromShort(from?: string, meta?: string): string {
   return "";
 }
 
+function TriageRowButton({
+  item,
+  highlighted,
+  onSelect,
+}: {
+  item: ModalTriageItem;
+  highlighted?: boolean;
+  onSelect?: (item: ModalTriageItem) => void;
+}) {
+  const body = (
+    <>
+      <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
+        {item.domain}
+      </span>
+      <div className="min-w-0 flex-1">
+        <strong className="block text-xs font-semibold text-navy">
+          {item.title}
+        </strong>
+        <div className="mt-0.5 text-[10px] text-navy/55">
+          {fromShort(item.from, item.meta)}
+          {item.from || item.meta ? " · " : ""}
+          {item.domain}
+        </div>
+      </div>
+      {onSelect && (
+        <span className="mt-0.5 flex-shrink-0 text-navy/35" aria-hidden>
+          ›
+        </span>
+      )}
+    </>
+  );
+
+  if (!onSelect) {
+    return (
+      <div
+        className={
+          highlighted
+            ? "flex items-start gap-2 rounded-lg border border-[#D97706] bg-[#FDE8C8] px-2 py-2"
+            : "flex items-start gap-2 border-b border-[rgba(217,119,6,0.15)] pb-2 last:border-b-0 last:pb-0"
+        }
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(item)}
+      className={
+        highlighted
+          ? "flex w-full items-start gap-2 rounded-lg border border-[#D97706] bg-[#FDE8C8] px-2 py-2 text-left hover:ring-1 hover:ring-[#D97706]/50"
+          : "flex w-full items-start gap-2 rounded-lg border border-transparent px-1 py-1.5 text-left hover:border-[rgba(217,119,6,0.35)] hover:bg-[#FFF8EE]"
+      }
+    >
+      {body}
+    </button>
+  );
+}
+
 export function EventDetailModal({
   open,
   onClose,
   event,
   triage = [],
+  onSelectTriage,
 }: {
   open: boolean;
   onClose: () => void;
   event: ModalCalEvent | null;
   triage?: ModalTriageItem[];
+  onSelectTriage?: (item: ModalTriageItem) => void;
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -195,23 +259,11 @@ export function EventDetailModal({
               </h3>
               <ul className="space-y-2">
                 {triage.map((item, i) => (
-                  <li
-                    key={item.id ?? `${item.title}-${i}`}
-                    className="flex items-start gap-2 border-b border-[rgba(217,119,6,0.15)] pb-2 last:border-b-0 last:pb-0"
-                  >
-                    <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
-                      {item.domain}
-                    </span>
-                    <div className="min-w-0">
-                      <strong className="block text-xs font-semibold text-navy">
-                        {item.title}
-                      </strong>
-                      <div className="mt-0.5 text-[10px] text-navy/55">
-                        {fromShort(item.from, item.meta)}
-                        {item.from || item.meta ? " · " : ""}
-                        {item.domain}
-                      </div>
-                    </div>
+                  <li key={item.id ?? `${item.title}-${i}`}>
+                    <TriageRowButton
+                      item={item}
+                      onSelect={onSelectTriage}
+                    />
                   </li>
                 ))}
               </ul>
@@ -230,6 +282,7 @@ export function DaySummaryModal({
   events,
   triage,
   onSelectEvent,
+  onSelectTriage,
   highlightTriageId = null,
 }: {
   open: boolean;
@@ -238,6 +291,7 @@ export function DaySummaryModal({
   events: ModalCalEvent[];
   triage: ModalTriageItem[];
   onSelectEvent: (ev: ModalCalEvent) => void;
+  onSelectTriage?: (item: ModalTriageItem) => void;
   highlightTriageId?: string | null;
 }) {
   const titleId = useId();
@@ -359,25 +413,12 @@ export function DaySummaryModal({
                     <li
                       key={key}
                       id={highlighted ? "triage-highlight" : undefined}
-                      className={
-                        highlighted
-                          ? "flex items-start gap-2 rounded-lg border border-[#D97706] bg-[#FDE8C8] px-2 py-2"
-                          : "flex items-start gap-2 border-b border-[rgba(217,119,6,0.15)] pb-2 last:border-b-0 last:pb-0"
-                      }
                     >
-                      <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
-                        {item.domain}
-                      </span>
-                      <div className="min-w-0">
-                        <strong className="block text-xs font-semibold text-navy">
-                          {item.title}
-                        </strong>
-                        <div className="mt-0.5 text-[10px] text-navy/55">
-                          {fromShort(item.from, item.meta)}
-                          {" · "}
-                          {item.domain}
-                        </div>
-                      </div>
+                      <TriageRowButton
+                        item={item}
+                        highlighted={highlighted}
+                        onSelect={onSelectTriage}
+                      />
                     </li>
                   );
                 })}
