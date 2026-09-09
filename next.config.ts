@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Keep typecheck on; auth/UI must compile cleanly for Vercel.
     ignoreBuildErrors: false,
   },
 };

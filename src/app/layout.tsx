@@ -1,3 +1,4 @@
+import "@/lib/ensure-auth-url";
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Providers } from "./providers";
@@ -16,7 +17,14 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
+const siteUrl =
+  process.env.NEXTAUTH_URL?.trim() ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Alisa EA Command Center",
   description: "Operated by Roxy · Executive dual-pane command center (B+C)",
 };
