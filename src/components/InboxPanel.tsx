@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { Domain, InboxItem, TriageReviewStatus } from "@/lib/types";
 import {
@@ -10,6 +10,10 @@ import {
   TRIAGE_STATUS_PILL_CLASS,
 } from "@/lib/triage-status";
 import { useTriageStatusMap } from "@/hooks/useTriageStatus";
+import {
+  formatUpdatedAt,
+  useLiveRefresh,
+} from "@/hooks/useLiveRefresh";
 import { TriageDetailModal } from "./TriageDetailModal";
 import { TriageStatusPill } from "./TriageStatusPill";
 import type { ModalTriageItem } from "./EventDetailModal";
@@ -39,36 +43,34 @@ export function InboxPanel({ domain }: { domain: Domain }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const statusMap = useTriageStatusMap();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await fetch("/api/gmail", { cache: "no-store" });
-        const data = (await res.json()) as GmailApiResponse;
-        if (cancelled) return;
-        setAuthenticated(Boolean(data.authenticated));
-        if (data.source === "live") {
-          setLiveItems(Array.isArray(data.items) ? data.items : []);
-          setSource("live");
-        } else {
-          setLiveItems([]);
-          setSource("none");
-        }
-      } catch {
-        if (!cancelled) {
-          setLiveItems([]);
-          setSource("none");
-          setAuthenticated(false);
-        }
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/gmail", { cache: "no-store" });
+      const data = (await res.json()) as GmailApiResponse;
+      setAuthenticated(Boolean(data.authenticated));
+      if (data.source === "live") {
+        setLiveItems(Array.isArray(data.items) ? data.items : []);
+        setSource("live");
+      } else {
+        setLiveItems([]);
+        setSource("none");
       }
+    } catch {
+      setLiveItems([]);
+      setSource("none");
+      setAuthenticated(false);
     }
+  }, []);
 
+  useEffect(() => {
     void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [status]);
+  }, [status, load]);
+
+  const { refresh, lastRefreshedAt, refreshing } = useLiveRefresh(load, {
+    intervalMs: 4 * 60 * 1000,
+  });
+
+  const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 
   const domainItems = useMemo(
     () =>
@@ -109,12 +111,35 @@ export function InboxPanel({ domain }: { domain: Domain }) {
       <h3 className="mb-1 font-serif text-[13px] font-semibold text-navy">
         Inbox triage
       </h3>
-      <p className="mb-1.5 text-[10px] text-navy/55">
-        {statusLabel}
-        {" · "}
-        domain labels only
-        {domain !== "All" ? ` · ${domain}` : ""}
-      </p>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2 pr-8">
+        <p className="min-w-0 flex-1 text-[10px] text-navy/55">
+          {statusLabel}
+          {" · "}
+          domain labels only
+          {domain !== "All" ? ` · ${domain}` : ""}
+          {updatedLabel ? ` · ${updatedLabel}` : ""}
+          {refreshing && !updatedLabel ? " · Refreshing…" : ""}
+        </p>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={refreshing}
+          aria-label="Refresh inbox"
+          className="inline-flex min-h-[32px] min-w-[44px] flex-shrink-0 items-center justify-center gap-1 rounded-[10px] border border-[rgba(27,54,68,0.12)] bg-cream px-2 py-1 text-[10px] font-semibold text-navy shadow-sm hover:border-teal hover:text-teal disabled:opacity-60"
+        >
+          <span
+            className={
+              refreshing
+                ? "inline-block animate-spin text-teal"
+                : "inline-block text-teal"
+            }
+            aria-hidden
+          >
+            ↻
+          </span>
+          Refresh
+        </button>
+      </div>
 
       <div
         className="-mx-0.5 mb-2 flex gap-1 overflow-x-auto pb-0.5"

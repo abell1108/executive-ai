@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { RULE_TAGS, WEEK_SUB, nextAloTargetIso } from "@/lib/seed-data";
 import type { AgendaDay, AgendaEvent, Domain } from "@/lib/types";
+import {
+  formatUpdatedAt,
+  useLiveRefresh,
+} from "@/hooks/useLiveRefresh";
 
 type LiveCalEvent = {
   id: string;
@@ -167,67 +171,65 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
   const [showCountdown, setShowCountdown] = useState(false);
   const countdown = useCountdown(aloIso);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
+    try {
+      const weekKeys = currentWeekKeysET();
+      const todayKey = nyDateKey(new Date());
+      const { timeMin, timeMax } = weekQueryRangeET();
+      const qs = new URLSearchParams({ timeMin, timeMax });
+      const res = await fetch(`/api/calendar?${qs}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      const data = (await res.json()) as CalendarApiResponse;
 
-    async function load() {
-      try {
-        const weekKeys = currentWeekKeysET();
-        const todayKey = nyDateKey(new Date());
-        const { timeMin, timeMax } = weekQueryRangeET();
-        const qs = new URLSearchParams({ timeMin, timeMax });
-        const res = await fetch(`/api/calendar?${qs}`, {
-          cache: "no-store",
-          credentials: "same-origin",
-        });
-        const data = (await res.json()) as CalendarApiResponse;
-        if (cancelled) return;
+      setWeekSub(weekSubtitle(weekKeys));
+      setAuthenticated(Boolean(data.authenticated));
 
-        setWeekSub(weekSubtitle(weekKeys));
-        setAuthenticated(Boolean(data.authenticated));
+      const usable =
+        (data.source === "live" || data.source === "standing") &&
+        Array.isArray(data.events);
 
-        const usable =
-          (data.source === "live" || data.source === "standing") &&
-          Array.isArray(data.events);
+      if (usable) {
+        const grouped = groupLiveIntoDays(data.events!, weekKeys, todayKey);
+        setLiveDays(grouped);
+        setSource(data.source === "standing" ? "standing" : "live");
 
-        if (usable) {
-          const grouped = groupLiveIntoDays(data.events!, weekKeys, todayKey);
-          setLiveDays(grouped);
-          setSource(data.source === "standing" ? "standing" : "live");
-
-          const alo = data.events!.find(
-            (e) => e.domain === "ALO" || /alo\s+chapter|alo|chapter/i.test(e.title),
+        const alo = data.events!.find(
+          (e) => e.domain === "ALO" || /alo\s+chapter|alo|chapter/i.test(e.title),
+        );
+        if (alo?.start) {
+          setAloIso(
+            alo.allDay && /^\d{4}-\d{2}-\d{2}$/.test(alo.start)
+              ? `${alo.start}T15:00:00.000Z`
+              : new Date(alo.start).toISOString(),
           );
-          if (alo?.start) {
-            setAloIso(
-              alo.allDay && /^\d{4}-\d{2}-\d{2}$/.test(alo.start)
-                ? `${alo.start}T15:00:00.000Z`
-                : new Date(alo.start).toISOString(),
-            );
-            setShowCountdown(true);
-          } else {
-            setShowCountdown(false);
-          }
+          setShowCountdown(true);
         } else {
-          setLiveDays([]);
-          setSource("none");
           setShowCountdown(false);
         }
-      } catch {
-        if (!cancelled) {
-          setLiveDays([]);
-          setSource("none");
-          setAuthenticated(false);
-          setShowCountdown(false);
-        }
+      } else {
+        setLiveDays([]);
+        setSource("none");
+        setShowCountdown(false);
       }
+    } catch {
+      setLiveDays([]);
+      setSource("none");
+      setAuthenticated(false);
+      setShowCountdown(false);
     }
+  }, []);
 
+  useEffect(() => {
     void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [status]);
+  }, [status, load]);
+
+  const { refresh, lastRefreshedAt, refreshing } = useLiveRefresh(load, {
+    intervalMs: 4 * 60 * 1000,
+  });
+
+  const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 
   const days = useMemo(() => {
     return liveDays
@@ -254,10 +256,33 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <p className="mb-2 text-xs text-navy/55">
-        {statusLabel} · {weekSub}
-        {domain !== "All" ? ` · filter: ${domain}` : ""}
-      </p>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="min-w-0 flex-1 text-xs text-navy/55">
+          {statusLabel} · {weekSub}
+          {domain !== "All" ? ` · filter: ${domain}` : ""}
+          {updatedLabel ? ` · ${updatedLabel}` : ""}
+          {refreshing && !updatedLabel ? " · Refreshing…" : ""}
+        </p>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={refreshing}
+          aria-label="Refresh agenda"
+          className="inline-flex min-h-[32px] min-w-[44px] items-center justify-center gap-1.5 rounded-[10px] border border-[rgba(27,54,68,0.12)] bg-cream px-2.5 py-1 text-[11px] font-semibold text-navy shadow-sm hover:border-teal hover:text-teal disabled:opacity-60"
+        >
+          <span
+            className={
+              refreshing
+                ? "inline-block animate-spin text-teal"
+                : "inline-block text-teal"
+            }
+            aria-hidden
+          >
+            ↻
+          </span>
+          Refresh
+        </button>
+      </div>
       <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto">
         {days.length === 0 && (
           <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-3 py-4 text-sm text-navy/55">

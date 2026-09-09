@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import type { Domain } from "@/lib/types";
+import {
+  formatUpdatedAt,
+  useLiveRefresh,
+} from "@/hooks/useLiveRefresh";
 import { CollisionBanner } from "./CollisionBanner";
 
 const SNAP_DOMAINS: Exclude<Domain, "All">[] = [
@@ -188,89 +192,87 @@ export function HomeDashboard() {
   const [todayFocus, setTodayFocus] = useState<string | null>(null);
   const [aloSoon, setAloSoon] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
+    try {
+      const [gmailRes, calRes] = await Promise.all([
+        fetch("/api/gmail", { cache: "no-store" }),
+        fetch("/api/calendar", { cache: "no-store" }),
+      ]);
+      const gmail = (await gmailRes.json()) as GmailApiResponse;
+      const cal = (await calRes.json()) as CalendarApiResponse;
 
-    async function load() {
-      try {
-        const [gmailRes, calRes] = await Promise.all([
-          fetch("/api/gmail", { cache: "no-store" }),
-          fetch("/api/calendar", { cache: "no-store" }),
-        ]);
-        const gmail = (await gmailRes.json()) as GmailApiResponse;
-        const cal = (await calRes.json()) as CalendarApiResponse;
-        if (cancelled) return;
-
-        if (gmail.source === "live" && Array.isArray(gmail.items)) {
-          setInboxCount(gmail.items.length);
-        } else {
-          setInboxCount(null);
-        }
-
-        const events = Array.isArray(cal.events) ? cal.events : [];
-        if (cal.source === "live" || cal.source === "standing") {
-          setCalKnown(true);
-          const weekKeys = new Set(currentWeekKeysET());
-          const weekEvents = events.filter(
-            (e) => e.start && weekKeys.has(etDateKey(e.start)),
-          );
-          setAgendaWeekCount(weekEvents.length);
-
-          const { year, month } = etMonthParts();
-          const monthEvents = events.filter((e) => {
-            if (!e.start) return false;
-            const key = etDateKey(e.start);
-            const [y, m] = key.split("-").map(Number);
-            return y === year && m === month;
-          });
-          setCalendarMonthCount(monthEvents.length);
-
-          setCollisionDays(countEveningStacks(events));
-          const today = todayKeyET();
-          const todayEvents = events.filter(
-            (e) => e.start && etDateKey(e.start) === today,
-          );
-          const aloToday = todayEvents.find(
-            (e) => /alo/i.test(e.title || "") || e.domain === "ALO",
-          );
-          if (aloToday) {
-            setTodayFocus("ALO prep");
-          } else if (todayEvents[0]?.title) {
-            const t = todayEvents[0].title;
-            setTodayFocus(t.length > 28 ? `${t.slice(0, 26)}…` : t);
-          } else {
-            setTodayFocus(null);
-          }
-          const hasAlo = events.some(
-            (e) => e.domain === "ALO" || /alo/i.test(e.title || ""),
-          );
-          setAloSoon(hasAlo);
-        } else {
-          setCalKnown(false);
-          setAgendaWeekCount(null);
-          setCalendarMonthCount(null);
-          setCollisionDays(0);
-          setTodayFocus(null);
-          setAloSoon(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setInboxCount(null);
-          setCalKnown(false);
-          setAgendaWeekCount(null);
-          setCalendarMonthCount(null);
-          setCollisionDays(0);
-          setTodayFocus(null);
-          setAloSoon(false);
-        }
+      if (gmail.source === "live" && Array.isArray(gmail.items)) {
+        setInboxCount(gmail.items.length);
+      } else {
+        setInboxCount(null);
       }
-    }
 
+      const events = Array.isArray(cal.events) ? cal.events : [];
+      if (cal.source === "live" || cal.source === "standing") {
+        setCalKnown(true);
+        const weekKeys = new Set(currentWeekKeysET());
+        const weekEvents = events.filter(
+          (e) => e.start && weekKeys.has(etDateKey(e.start)),
+        );
+        setAgendaWeekCount(weekEvents.length);
+
+        const { year, month } = etMonthParts();
+        const monthEvents = events.filter((e) => {
+          if (!e.start) return false;
+          const key = etDateKey(e.start);
+          const [y, m] = key.split("-").map(Number);
+          return y === year && m === month;
+        });
+        setCalendarMonthCount(monthEvents.length);
+
+        setCollisionDays(countEveningStacks(events));
+        const today = todayKeyET();
+        const todayEvents = events.filter(
+          (e) => e.start && etDateKey(e.start) === today,
+        );
+        const aloToday = todayEvents.find(
+          (e) => /alo/i.test(e.title || "") || e.domain === "ALO",
+        );
+        if (aloToday) {
+          setTodayFocus("ALO prep");
+        } else if (todayEvents[0]?.title) {
+          const t = todayEvents[0].title;
+          setTodayFocus(t.length > 28 ? `${t.slice(0, 26)}…` : t);
+        } else {
+          setTodayFocus(null);
+        }
+        const hasAlo = events.some(
+          (e) => e.domain === "ALO" || /alo/i.test(e.title || ""),
+        );
+        setAloSoon(hasAlo);
+      } else {
+        setCalKnown(false);
+        setAgendaWeekCount(null);
+        setCalendarMonthCount(null);
+        setCollisionDays(0);
+        setTodayFocus(null);
+        setAloSoon(false);
+      }
+    } catch {
+      setInboxCount(null);
+      setCalKnown(false);
+      setAgendaWeekCount(null);
+      setCalendarMonthCount(null);
+      setCollisionDays(0);
+      setTodayFocus(null);
+      setAloSoon(false);
+    }
+  }, []);
+
+  useEffect(() => {
     void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [status]);
+  }, [status, load]);
+
+  const { refresh, lastRefreshedAt, refreshing } = useLiveRefresh(load, {
+    intervalMs: 4 * 60 * 1000,
+  });
+
+  const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 
   // Approvals stay empty until real outbound drafts exist (no seed fallbacks).
   const [approvalCount] = useState(0);
@@ -376,7 +378,31 @@ export function HomeDashboard() {
           <div className="flex items-center gap-2 text-xs text-navy/70">
             <span aria-hidden>📅</span>
             <span className="font-medium">{dateLabel}</span>
+            {updatedLabel ? (
+              <span className="hidden text-[10px] text-navy/45 sm:inline">
+                · {updatedLabel}
+              </span>
+            ) : null}
           </div>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={refreshing}
+            aria-label="Refresh home counts"
+            className="inline-flex min-h-[32px] min-w-[44px] items-center justify-center gap-1 rounded-full border border-[rgba(27,54,68,0.12)] bg-cream px-2.5 py-1 text-[11px] font-semibold text-navy shadow-sm hover:border-teal hover:text-teal disabled:opacity-60"
+          >
+            <span
+              className={
+                refreshing
+                  ? "inline-block animate-spin text-teal"
+                  : "inline-block text-teal"
+              }
+              aria-hidden
+            >
+              ↻
+            </span>
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
           <span
             className="hidden h-6 w-px bg-[rgba(27,54,68,0.18)] sm:block"
             aria-hidden

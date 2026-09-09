@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { buildMonthGrid, domainToPillKind } from "@/lib/seed-data";
 import type { CalendarDay, CalendarPill, Domain, PillKind } from "@/lib/types";
+import {
+  formatUpdatedAt,
+  useLiveRefresh,
+} from "@/hooks/useLiveRefresh";
 import {
   DaySummaryModal,
   EventDetailModal,
@@ -185,55 +189,55 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     [cursorDate],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const { timeMin, timeMax } = monthQueryRange(year, monthIndex);
-        const calQs = new URLSearchParams({ timeMin, timeMax });
-        const [calRes, mailRes] = await Promise.all([
-          fetch(`/api/calendar?${calQs}`, {
-            cache: "no-store",
-            credentials: "same-origin",
-          }),
-          fetch("/api/gmail", {
-            cache: "no-store",
-            credentials: "same-origin",
-          }),
-        ]);
-        const calData = (await calRes.json()) as CalendarApiResponse;
-        const mailData = (await mailRes.json()) as GmailApiResponse;
-        if (cancelled) return;
-        setAuthenticated(Boolean(calData.authenticated));
-        const usable =
-          (calData.source === "live" || calData.source === "standing") &&
-          Array.isArray(calData.events);
-        if (usable) {
-          setLiveEvents(calData.events!);
-          setSource(calData.source === "standing" ? "standing" : "live");
-        } else {
-          setLiveEvents([]);
-          setSource("none");
-        }
-        if (mailData.source === "live" && Array.isArray(mailData.items)) {
-          setTriageItems(mailData.items);
-        } else {
-          setTriageItems([]);
-        }
-      } catch {
-        if (!cancelled) {
-          setLiveEvents([]);
-          setTriageItems([]);
-          setSource("none");
-          setAuthenticated(false);
-        }
+  const load = useCallback(async () => {
+    try {
+      const { timeMin, timeMax } = monthQueryRange(year, monthIndex);
+      const calQs = new URLSearchParams({ timeMin, timeMax });
+      const [calRes, mailRes] = await Promise.all([
+        fetch(`/api/calendar?${calQs}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+        }),
+        fetch("/api/gmail", {
+          cache: "no-store",
+          credentials: "same-origin",
+        }),
+      ]);
+      const calData = (await calRes.json()) as CalendarApiResponse;
+      const mailData = (await mailRes.json()) as GmailApiResponse;
+      setAuthenticated(Boolean(calData.authenticated));
+      const usable =
+        (calData.source === "live" || calData.source === "standing") &&
+        Array.isArray(calData.events);
+      if (usable) {
+        setLiveEvents(calData.events!);
+        setSource(calData.source === "standing" ? "standing" : "live");
+      } else {
+        setLiveEvents([]);
+        setSource("none");
       }
+      if (mailData.source === "live" && Array.isArray(mailData.items)) {
+        setTriageItems(mailData.items);
+      } else {
+        setTriageItems([]);
+      }
+    } catch {
+      setLiveEvents([]);
+      setTriageItems([]);
+      setSource("none");
+      setAuthenticated(false);
     }
+  }, [year, monthIndex]);
+
+  useEffect(() => {
     void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, year, monthIndex]);
+  }, [status, load]);
+
+  const { refresh, lastRefreshedAt, refreshing } = useLiveRefresh(load, {
+    intervalMs: 4 * 60 * 1000,
+  });
+
+  const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 
   const filteredEvents = useMemo(
     () =>
@@ -344,9 +348,11 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
           <p className="mt-0.5 text-[10px] text-navy/55">
             {statusLabel} · Month grid · event + triage pills
             {domain !== "All" ? ` · ${domain}` : ""} · America/New_York
+            {updatedLabel ? ` · ${updatedLabel}` : ""}
+            {refreshing && !updatedLabel ? " · Refreshing…" : ""}
           </p>
         </div>
-        <div className="inline-flex items-center gap-1.5" aria-label="Month navigation">
+        <div className="inline-flex flex-wrap items-center gap-1.5" aria-label="Month navigation">
           <button
             type="button"
             onClick={() =>
@@ -375,6 +381,25 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
             aria-label="Next month"
           >
             ›
+          </button>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={refreshing}
+            aria-label="Refresh calendar"
+            className="inline-flex min-h-[32px] min-w-[44px] items-center justify-center gap-1.5 rounded-[10px] border border-[rgba(27,54,68,0.12)] bg-cream px-2.5 py-1.5 text-[11px] font-semibold text-navy shadow-sm hover:border-teal hover:text-teal disabled:opacity-60"
+          >
+            <span
+              className={
+                refreshing
+                  ? "inline-block animate-spin text-teal"
+                  : "inline-block text-teal"
+              }
+              aria-hidden
+            >
+              ↻
+            </span>
+            Refresh
           </button>
         </div>
       </div>
