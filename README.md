@@ -4,7 +4,7 @@ Next.js 15 + TypeScript + Tailwind. Operated by Roxy. Dual-pane B+C.
 Mobile-friendly Progressive Web App (installable standalone).
 
 Repo: https://github.com/abell1108/executive-ai.git
-Prod: https://executive-ai.vercel.app
+Prod: https://executive-ai-one.vercel.app
 
 ## 1. Local
 
@@ -24,7 +24,7 @@ Push to abell1108/executive-ai on main when Alisa approves.
 
 Import the repo on Vercel. Configure:
 
-- `NEXTAUTH_URL=https://executive-ai.vercel.app`
+- `NEXTAUTH_URL=https://executive-ai-one.vercel.app`
 - `NEXTAUTH_SECRET`
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 
@@ -33,7 +33,7 @@ Build does not require them; live Google sign-in does.
 ## 4. Google Cloud Console redirect URIs
 
 - http://localhost:3000/api/auth/callback/google
-- https://executive-ai.vercel.app/api/auth/callback/google
+- https://executive-ai-one.vercel.app/api/auth/callback/google
 - https://executive-ai-git-main-abell1108.vercel.app/api/auth/callback/google
 
 Enable Gmail API and Calendar API.
