@@ -29,7 +29,7 @@ export function AskRoxy({
     const text = prompt.trim();
     if (!text) return;
     setEcho(
-      `Roxy (MVP local echo): Got it — “${text}”. Live drafting wires in after Google connect + approval gate.`,
+      `Roxy noted: “${text}”. Platform brain will draft replies and calendar moves here — outbound still waits for your approval gate.`,
     );
     setPrompt("");
   };
@@ -55,7 +55,7 @@ export function AskRoxy({
               Ask Roxy
             </h2>
             <p className="text-xs text-navy/55">
-              Single EA voice · B+C · local echo MVP
+              Your EA platform brain · guidance & drafts · approval-gated outbound
             </p>
           </div>
           <button

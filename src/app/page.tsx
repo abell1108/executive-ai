@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
-import { HomeDashboard } from "@/components/HomeDashboard";
+import { ResponsiveHome } from "@/components/ResponsiveHome";
 
 export default function HomePage() {
-  return <HomeDashboard />;
+  return <ResponsiveHome />;
 }
