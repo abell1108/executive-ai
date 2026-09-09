@@ -4,7 +4,8 @@ Next.js 15 + TypeScript + Tailwind. Operated by Roxy. Dual-pane B+C.
 Mobile-friendly Progressive Web App (installable standalone).
 
 Repo: https://github.com/abell1108/executive-ai.git
-Prod: https://executive-ai-one.vercel.app
+Prod: https://roxy.alisabellamy.com
+Legacy Vercel URL (optional): https://executive-ai-one.vercel.app
 
 ## 1. Local
 
@@ -24,17 +25,25 @@ Push to abell1108/executive-ai on main when Alisa approves.
 
 Import the repo on Vercel. Configure:
 
-- `NEXTAUTH_URL=https://executive-ai-one.vercel.app`
+- `NEXTAUTH_URL=https://roxy.alisabellamy.com` (**required for production** — must match the custom domain)
 - `NEXTAUTH_SECRET`
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
 
 Build does not require them; live Google sign-in does.
+`signIn("google")` uses an explicit `callbackUrl: "/"` rooted via `NEXTAUTH_URL`.
 
-## 4. Google Cloud Console redirect URIs
+## 4. Google Cloud Console
 
+### Authorized JavaScript origins
+- http://localhost:3000
+- https://roxy.alisabellamy.com
+- https://executive-ai-one.vercel.app (legacy / optional)
+
+### Authorized redirect URIs
 - http://localhost:3000/api/auth/callback/google
-- https://executive-ai-one.vercel.app/api/auth/callback/google
-- https://executive-ai-git-main-abell1108.vercel.app/api/auth/callback/google
+- https://roxy.alisabellamy.com/api/auth/callback/google
+- https://executive-ai-one.vercel.app/api/auth/callback/google (legacy / optional)
+- https://executive-ai-git-main-abell1108.vercel.app/api/auth/callback/google (preview / optional)
 
 Enable Gmail API and Calendar API.
 

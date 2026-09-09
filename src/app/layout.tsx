@@ -19,7 +19,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://executive-ai-one.vercel.app"),
+  metadataBase: new URL("https://roxy.alisabellamy.com"),
   title: "Alisa EA Command Center",
   description: "Operated by Roxy · Executive dual-pane command center (B+C)",
   manifest: "/manifest.webmanifest",

@@ -37,7 +37,8 @@ export function ConnectGoogle({ configured }: { configured: boolean }) {
           type="button"
           onClick={() => {
             if (!configured) return;
-            void signIn("google");
+            // Root callback at current origin (prod = https://roxy.alisabellamy.com when NEXTAUTH_URL matches).
+            void signIn("google", { callbackUrl: "/" });
           }}
           disabled={!configured}
           className="w-full rounded-full bg-navy px-4 py-2 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
