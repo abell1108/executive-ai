@@ -230,6 +230,7 @@ export function DaySummaryModal({
   events,
   triage,
   onSelectEvent,
+  highlightTriageId = null,
 }: {
   open: boolean;
   onClose: () => void;
@@ -237,6 +238,7 @@ export function DaySummaryModal({
   events: ModalCalEvent[];
   triage: ModalTriageItem[];
   onSelectEvent: (ev: ModalCalEvent) => void;
+  highlightTriageId?: string | null;
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -247,12 +249,21 @@ export function DaySummaryModal({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    const t = window.setTimeout(() => closeRef.current?.focus(), 0);
+    const t = window.setTimeout(() => {
+      if (highlightTriageId) {
+        document.getElementById("triage-highlight")?.scrollIntoView({
+          block: "nearest",
+          behavior: "smooth",
+        });
+      } else {
+        closeRef.current?.focus();
+      }
+    }, 0);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.clearTimeout(t);
     };
-  }, [open, onClose]);
+  }, [open, onClose, highlightTriageId]);
 
   if (!open) return null;
 
@@ -337,26 +348,39 @@ export function DaySummaryModal({
                 Inbox triage ({triage.length})
               </h3>
               <ul className="space-y-2">
-                {triage.map((item, i) => (
-                  <li
-                    key={item.id ?? `${item.title}-${i}`}
-                    className="flex items-start gap-2 border-b border-[rgba(217,119,6,0.15)] pb-2 last:border-b-0 last:pb-0"
-                  >
-                    <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
-                      {item.domain}
-                    </span>
-                    <div className="min-w-0">
-                      <strong className="block text-xs font-semibold text-navy">
-                        {item.title}
-                      </strong>
-                      <div className="mt-0.5 text-[10px] text-navy/55">
-                        {fromShort(item.from, item.meta)}
-                        {" · "}
+                {triage.map((item, i) => {
+                  const key = item.id ?? `${item.title}-${i}`;
+                  const highlighted =
+                    highlightTriageId != null &&
+                    (item.id === highlightTriageId ||
+                      item.title === highlightTriageId ||
+                      key === highlightTriageId);
+                  return (
+                    <li
+                      key={key}
+                      id={highlighted ? "triage-highlight" : undefined}
+                      className={
+                        highlighted
+                          ? "flex items-start gap-2 rounded-lg border border-[#D97706] bg-[#FDE8C8] px-2 py-2"
+                          : "flex items-start gap-2 border-b border-[rgba(217,119,6,0.15)] pb-2 last:border-b-0 last:pb-0"
+                      }
+                    >
+                      <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
                         {item.domain}
+                      </span>
+                      <div className="min-w-0">
+                        <strong className="block text-xs font-semibold text-navy">
+                          {item.title}
+                        </strong>
+                        <div className="mt-0.5 text-[10px] text-navy/55">
+                          {fromShort(item.from, item.meta)}
+                          {" · "}
+                          {item.domain}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

@@ -20,7 +20,7 @@ export function Header({
           Alisa EA Command Center
         </h1>
         <p className="mt-0.5 text-[10px] text-navy/55 sm:text-xs">
-          Operated by Roxy · B+C
+          Operated by Roxy
         </p>
       </div>
 

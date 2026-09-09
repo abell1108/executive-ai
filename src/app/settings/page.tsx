@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { HARD_RULES } from "@/lib/types";
+import { isGoogleConfigured } from "@/lib/auth";
+import { ConnectGoogle } from "@/components/ConnectGoogle";
 
 export const dynamic = "force-dynamic";
 
 export default function SettingsPage() {
+  const googleConfigured = isGoogleConfigured();
+
   return (
     <div className="min-h-screen bg-cream text-navy">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[rgba(27,54,68,0.12)] px-6 py-4">
@@ -12,7 +16,7 @@ export default function SettingsPage() {
             Settings · Hard rules
           </h1>
           <p className="mt-0.5 text-xs text-navy/55">
-            Operated by Roxy · B+C · Alisa approval gate
+            Operated by Roxy · Alisa approval gate
           </p>
         </div>
         <Link
@@ -24,6 +28,13 @@ export default function SettingsPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-8">
+        <section className="mb-8" aria-label="Google connection">
+          <h2 className="mb-3 font-serif text-base font-semibold text-navy">
+            Google connection
+          </h2>
+          <ConnectGoogle configured={googleConfigured} />
+        </section>
+
         <p className="mb-6 text-sm text-navy/70">
           These rules are product constraints for Roxy. Changing them requires
           Alisa&apos;s explicit approval — they are not self-serve toggles in
@@ -49,7 +60,7 @@ export default function SettingsPage() {
           <strong className="font-semibold">Connect Google:</strong> when{" "}
           <code className="text-xs">GOOGLE_CLIENT_ID</code> /{" "}
           <code className="text-xs">GOOGLE_CLIENT_SECRET</code> are set in
-          Vercel, the home CTA enables Sign in with Google. Once signed in,
+          Vercel, Sign in with Google is available above. Once signed in,
           Inbox and Calendar show live domain-labeled items only (TPFI, DeeperRSC,
           Myers, ALO, KB, SRF).
         </div>

@@ -4,7 +4,6 @@ import { useState } from "react";
 import type { Domain } from "@/lib/types";
 import { Header } from "./Header";
 import { CollisionBanner } from "./CollisionBanner";
-import { ConnectGoogle } from "./ConnectGoogle";
 import { AgendaPanel } from "./AgendaPanel";
 import { CalendarMonth } from "./CalendarMonth";
 import { InboxPanel } from "./InboxPanel";
@@ -12,7 +11,7 @@ import { ApprovalsPanel } from "./ApprovalsPanel";
 import { RestGuards } from "./RestGuards";
 import { AskRoxy } from "./AskRoxy";
 
-export function CommandCenter({ googleConfigured }: { googleConfigured: boolean }) {
+export function CommandCenter() {
   const [view, setView] = useState<"agenda" | "calendar">("agenda");
   const [domain, setDomain] = useState<Domain>("All");
   const [askOpen, setAskOpen] = useState(false);
@@ -24,7 +23,6 @@ export function CommandCenter({ googleConfigured }: { googleConfigured: boolean 
         onDomainChange={setDomain}
         onAskRoxy={() => setAskOpen(true)}
       />
-      <ConnectGoogle configured={googleConfigured} />
       <CollisionBanner />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-3 py-3 sm:gap-0 sm:px-4 md:grid-cols-[minmax(0,68%)_minmax(240px,32%)]">

@@ -20,6 +20,12 @@ const pillClass: Record<PillKind, string> = {
   rest: "bg-[#FDE8C8] text-alert-text",
 };
 
+/** Outlined amber mail pills — distinct from solid event pills. */
+const triagePillClass =
+  "border border-[#D97706] bg-[#FFF8EE] text-[#B45309] font-semibold";
+
+const MAX_CELL_PILLS = 3;
+
 const dotClass: Record<PillKind, string> = {
   corp: "bg-[rgba(27,54,68,0.35)]",
   tpfi: "bg-teal",
@@ -150,6 +156,9 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
   const [detailEvent, setDetailEvent] = useState<LiveCalEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [summaryDay, setSummaryDay] = useState<number | null>(null);
+  const [summaryHighlightTriageId, setSummaryHighlightTriageId] = useState<
+    string | null
+  >(null);
 
   const year = cursorDate.getFullYear();
   const monthIndex = cursorDate.getMonth();
@@ -269,11 +278,17 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     setDetailOpen(true);
   };
 
-  const openDaySummary = (day: number) => {
+  const openDaySummary = (day: number, highlightTriageId?: string | null) => {
     if (Number.isNaN(day)) return;
     setDetailOpen(false);
     setDetailEvent(null);
+    setSummaryHighlightTriageId(highlightTriageId ?? null);
     setSummaryDay(day);
+  };
+
+  const openTriage = (day: number, item: LiveTriageItem) => {
+    const id = item.id ?? item.title;
+    openDaySummary(day, id);
   };
 
   // Inbox triage for that day/domain: same calendar day + matching event domain
@@ -298,8 +313,8 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
             {cursorLabel}
           </h3>
           <p className="mt-0.5 text-[10px] text-navy/55">
-            {statusLabel} · Month grid · domain event pills
-            {domain !== "All" ? ` · ${domain}` : ""} · triage ✉ · America/New_York
+            {statusLabel} · Month grid · event + triage pills
+            {domain !== "All" ? ` · ${domain}` : ""} · America/New_York
           </p>
         </div>
         <div className="inline-flex items-center gap-1.5" aria-label="Month navigation">
@@ -361,6 +376,25 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
               : (triageByDay.get(cell.day) ?? []);
             const hasTriage = dayTriage.length > 0;
 
+            // Limit 2–3 pills; when triage exists, reserve ≥1 triage pill.
+            let shownEvents: LiveCalEvent[] = [];
+            let shownTriage: LiveTriageItem[] = [];
+            if (hasTriage) {
+              const eventSlots = Math.min(dayEvents.length, MAX_CELL_PILLS - 1);
+              shownEvents = dayEvents.slice(0, eventSlots);
+              shownTriage = dayTriage.slice(
+                0,
+                Math.min(dayTriage.length, MAX_CELL_PILLS - eventSlots),
+              );
+            } else {
+              shownEvents = dayEvents.slice(0, MAX_CELL_PILLS);
+            }
+            const overflow =
+              dayEvents.length +
+              dayTriage.length -
+              shownEvents.length -
+              shownTriage.length;
+
             return (
               <div
                 key={`${cell.day}-${i}`}
@@ -401,17 +435,16 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
                       {cell.day}
                     </span>
                   )}
-                  {hasTriage && (
+                  {overflow > 0 && (
                     <span
-                      className="rounded-full bg-[#FDE8C8] px-1 py-px text-[7px] font-bold leading-none text-[#B45309] sm:text-[8px]"
-                      title={`${dayTriage.length} triage item(s)`}
-                      aria-label={`${dayTriage.length} inbox triage items`}
+                      className="text-[7px] font-bold leading-none text-navy/45 sm:text-[8px]"
+                      title={`${overflow} more`}
                     >
-                      ✉
+                      +{overflow}
                     </span>
                   )}
                 </div>
-                {dayEvents.slice(0, 3).map((ev) => {
+                {shownEvents.map((ev) => {
                   const kind = domainToPillKind(ev.domain);
                   return (
                     <button
@@ -428,7 +461,25 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
                     </button>
                   );
                 })}
-                {cell.dots.length > 0 && (
+                {shownTriage.map((item, ti) => {
+                  const tid = item.id ?? `${item.title}-${cell.day}-${ti}`;
+                  return (
+                    <button
+                      key={tid}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTriage(cell.day, item);
+                      }}
+                      className={`block max-w-full flex-shrink-0 truncate rounded-full px-1 py-0.5 text-left text-[7px] leading-tight hover:ring-1 hover:ring-[#D97706]/60 sm:px-1.5 sm:text-[8px] ${triagePillClass}`}
+                      title={`Triage: ${item.title}`}
+                      aria-label={`Inbox triage: ${item.title}`}
+                    >
+                      ✉ {shortLabel(item.title)}
+                    </button>
+                  );
+                })}
+                {cell.dots.length > 0 && shownEvents.length === 0 && shownTriage.length === 0 && (
                   <div className="mt-auto flex flex-wrap gap-[3px] pt-0.5">
                     {cell.dots.map((d, di) => (
                       <i
@@ -437,22 +488,6 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
                         aria-hidden
                       />
                     ))}
-                    {hasTriage && (
-                      <i
-                        className="block h-[5px] w-[5px] rounded-full bg-[#D97706]"
-                        aria-hidden
-                        title="Inbox triage"
-                      />
-                    )}
-                  </div>
-                )}
-                {cell.dots.length === 0 && hasTriage && (
-                  <div className="mt-auto flex flex-wrap gap-[3px] pt-0.5">
-                    <i
-                      className="block h-[5px] w-[5px] rounded-full bg-[#D97706]"
-                      aria-hidden
-                      title="Inbox triage"
-                    />
                   </div>
                 )}
               </div>
@@ -470,7 +505,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
       )}
 
       <p className="flex-shrink-0 pb-1 text-[10px] leading-snug text-navy/55 sm:text-[11px]">
-        Teal = TPFI / DeeperRSC / Myers / KB · Navy = ALO · Amber = SRF / triage ✉
+        Teal = TPFI / DeeperRSC / Myers / KB · Navy = ALO · Amber outline = inbox triage
       </p>
 
       <EventDetailModal
@@ -485,7 +520,10 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
 
       <DaySummaryModal
         open={summaryDay != null}
-        onClose={() => setSummaryDay(null)}
+        onClose={() => {
+          setSummaryDay(null);
+          setSummaryHighlightTriageId(null);
+        }}
         dayLabel={
           summaryDay != null
             ? dayLabel(year, monthIndex, summaryDay)
@@ -494,6 +532,7 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
         events={summaryEvents}
         triage={summaryTriage}
         onSelectEvent={(ev) => openEvent(ev)}
+        highlightTriageId={summaryHighlightTriageId}
       />
     </div>
   );
