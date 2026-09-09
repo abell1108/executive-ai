@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
-import { CommandCenter } from "@/components/CommandCenter";
+import { HomeDashboard } from "@/components/HomeDashboard";
 
 export default function HomePage() {
-  return <CommandCenter />;
+  return <HomeDashboard />;
 }

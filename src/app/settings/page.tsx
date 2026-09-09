@@ -12,19 +12,29 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-cream text-navy">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[rgba(27,54,68,0.12)] px-6 py-4">
         <div>
-          <h1 className="font-serif text-[22px] font-bold tracking-tight text-navy">
-            Settings · Hard rules
-          </h1>
+          <Link href="/" className="block no-underline">
+            <h1 className="font-serif text-[22px] font-bold tracking-tight text-navy hover:text-teal">
+              Alisa EA Command Center
+            </h1>
+          </Link>
           <p className="mt-0.5 text-xs text-navy/55">
-            Operated by Roxy · Alisa approval gate
+            Settings · Hard rules · Operated by Roxy
           </p>
         </div>
-        <Link
-          href="/"
-          className="rounded-full border border-[rgba(27,54,68,0.12)] bg-white px-4 py-2 text-xs font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
-        >
-          ← Back to Command Center
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/desk"
+            className="rounded-full border border-[rgba(27,54,68,0.12)] bg-white px-4 py-2 text-xs font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
+          >
+            Open desk
+          </Link>
+          <Link
+            href="/"
+            className="rounded-full border border-[rgba(27,54,68,0.12)] bg-white px-4 py-2 text-xs font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
+          >
+            ← Home
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-8">

@@ -16,9 +16,11 @@ export function Header({
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-[rgba(27,54,68,0.12)] bg-cream px-3 py-3 sm:gap-5 sm:px-6 sm:py-4">
       <div className="min-w-0 flex-shrink-0 sm:min-w-[200px]">
-        <h1 className="font-serif text-[17px] font-bold tracking-tight text-navy sm:text-[22px]">
-          Alisa EA Command Center
-        </h1>
+        <Link href="/" className="block no-underline">
+          <h1 className="font-serif text-[17px] font-bold tracking-tight text-navy hover:text-teal sm:text-[22px]">
+            Alisa EA Command Center
+          </h1>
+        </Link>
         <p className="mt-0.5 text-[10px] text-navy/55 sm:text-xs">
           Operated by Roxy
         </p>
