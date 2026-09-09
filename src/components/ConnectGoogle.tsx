@@ -18,10 +18,10 @@ export function ConnectGoogle({ configured }: { configured: boolean }) {
         </p>
         <p className="break-words text-xs text-navy/55">
           {!configured
-            ? "Missing Google env — add GOOGLE_CLIENT_ID / SECRET + NEXTAUTH_SECRET to sync domain Gmail & Calendar."
+            ? "Missing Google env — add GOOGLE_CLIENT_ID / SECRET + NEXTAUTH_SECRET to sync Gmail & Calendar."
             : signedIn
-              ? `Signed in as ${session?.user?.email ?? session?.user?.name ?? "you"} · Domain Gmail & Calendar live.`
-              : "OAuth env detected — sign in to load domain Gmail & Calendar."}
+              ? `Signed in as ${session?.user?.email ?? session?.user?.name ?? "you"} · Gmail & Calendar live.`
+              : "OAuth env detected — sign in to load Gmail & Calendar."}
         </p>
       </div>
       {signedIn ? (

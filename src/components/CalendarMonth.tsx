@@ -296,11 +296,11 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     source === "loading"
       ? "Loading…"
       : source === "live"
-        ? "Live · Domains"
+        ? "Live · Roles"
         : source === "standing"
-          ? "Standing ALO · Domains"
+          ? "Standing ALO · Roles"
           : authenticated
-            ? "Live · Domains"
+            ? "Live · Roles"
             : "Sign in";
 
   const openEvent = (ev: LiveCalEvent) => {
@@ -554,8 +554,8 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
       {filteredEvents.length === 0 && source !== "loading" && (
         <p className="flex-shrink-0 rounded-lg border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-2.5 py-2 text-[10px] text-navy/55 sm:text-[11px]">
           {source === "live" || source === "standing" || authenticated
-            ? `No domain calendar events${domain !== "All" ? ` for ${domainDisplayName(domain)}` : ""} this month.`
-            : "Sign in to load domain Calendar."}
+            ? `No role calendar events${domain !== "All" ? ` for ${domainDisplayName(domain)}` : ""} this month.`
+            : "Sign in to load Calendar."}
         </p>
       )}
 

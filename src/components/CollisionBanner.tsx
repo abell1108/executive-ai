@@ -103,7 +103,7 @@ export function CollisionBanner() {
         <p className="text-[11px] font-bold uppercase tracking-wide leading-snug sm:text-[13px]">
           <strong className="font-extrabold tracking-wider">HIGH COLLISION</strong>
           {" · "}
-          Evening stack among domain events — protect after-5 capacity.
+          Evening stack among role events — protect after-5 capacity.
         </p>
       </div>
     </div>

@@ -210,7 +210,7 @@ export function MobileAppShell({
         onClick={() => setDomainsOpen(true)}
         className="mb-2 inline-flex items-center gap-1 rounded-full border border-teal/30 bg-[rgba(45,106,108,0.08)] px-2.5 py-1 text-[11px] font-semibold text-teal md:px-3 md:py-1.5 md:text-[12px]"
       >
-        Domain · {domainDisplayName(domain)}
+        Role · {domainDisplayName(domain)}
         <span aria-hidden>▾</span>
       </button>
     ) : null;

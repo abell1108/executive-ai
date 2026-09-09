@@ -173,7 +173,7 @@ export function MobileHome({
         } else if (todayEvents[0]?.title) {
           const t = todayEvents[0].title;
           setFocusTitle(t.length > 36 ? `${t.slice(0, 34)}…` : t);
-          setFocusSub(todayEvents[0].meta || "Today's priority · Domains");
+          setFocusSub(todayEvents[0].meta || "Today's priority · Roles");
         } else {
           setFocusTitle(null);
           setFocusSub(null);
@@ -283,7 +283,7 @@ export function MobileHome({
         <p className="mt-1 text-[13px] text-navy/60 md:text-[15px]">
           {focusSub ??
             (calKnown
-              ? "No domain priority flagged · Protect 9–5"
+              ? "No role priority flagged · Protect 9–5"
               : "Connect Google in Settings for live calendar")}
         </p>
         <div
@@ -396,7 +396,7 @@ export function MobileHome({
         {upcoming.length === 0 ? (
           <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.18)] bg-white/60 px-3 py-4 text-[13px] text-navy/55 md:px-4 md:py-5 md:text-[14px]">
             {calKnown
-              ? "No domain events on the calendar today."
+              ? "No role events on the calendar today."
               : "Sign in to load today's agenda."}
           </p>
         ) : (

@@ -5,15 +5,15 @@ export function RestGuards() {
         Rest / Burnout guards
       </h3>
       <p className="mb-1.5 text-[10px] text-navy/55">
-        Generic domain tips · live flags when calendar stacks evenings
+        Generic role tips · live flags when calendar stacks evenings
       </p>
       <div className="border-b border-[rgba(27,54,68,0.12)] py-2.5 text-[13px]">
         <strong className="mb-0.5 block font-semibold text-navy">
           Protect after-5 capacity
         </strong>
         <div className="text-xs text-navy/55">
-          Domain work after corporate hours — avoid stacking evenings when
-          multiple domain events land the same night.
+          Role work after corporate hours — avoid stacking evenings when
+          multiple role events land the same night.
         </div>
       </div>
       <div className="border-b border-[rgba(27,54,68,0.12)] py-2.5 text-[13px]">
@@ -21,7 +21,7 @@ export function RestGuards() {
           Meeting buffers
         </strong>
         <div className="text-xs text-navy/55">
-          Leave lead-up and recovery time around high-stakes domain events.
+          Leave lead-up and recovery time around high-stakes role events.
         </div>
       </div>
       <div className="py-2.5 pb-0 text-[13px]">
@@ -29,7 +29,7 @@ export function RestGuards() {
           Recovery markers
         </strong>
         <div className="text-xs text-navy/55">
-          After heavy domain days, keep a lighter block for recovery.
+          After heavy role days, keep a lighter block for recovery.
         </div>
       </div>
     </div>

@@ -15,13 +15,13 @@ export const DOMAINS: Domain[] = [
 ];
 
 /** Soft week label when live range unavailable. */
-export const WEEK_SUB = "This week · Domains only";
+export const WEEK_SUB = "This week · Roles only";
 
 export const COLLISION_MESSAGE =
   "HIGH COLLISION · Burnout risk if evening stacked — protect after-5 capacity.";
 
 export const RULE_TAGS = [
-  "Domain events only",
+  "Role events only",
   "Approvals required",
   "After-5 role work",
 ];

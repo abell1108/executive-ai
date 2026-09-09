@@ -45,10 +45,10 @@ export function Header({
 
       <nav
         className="scrollbar-none -mx-1 flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:w-auto sm:flex-1 sm:justify-center sm:overflow-visible sm:px-0"
-        aria-label="Domain filters"
+        aria-label="Role filters"
       >
         <span className="mr-1 flex-shrink-0 text-[10px] font-bold uppercase tracking-wider text-navy/55">
-          Domains
+          Roles
         </span>
         {DOMAINS.map((d) => (
           <button

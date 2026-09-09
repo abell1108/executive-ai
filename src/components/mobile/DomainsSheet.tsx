@@ -46,7 +46,7 @@ export function DomainsSheet({
             id={titleId}
             className="font-serif text-lg font-bold text-navy md:text-xl"
           >
-            Domains
+            Roles
           </h2>
           <button
             type="button"

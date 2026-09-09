@@ -113,7 +113,7 @@ function weekSubtitle(weekKeys: string[]): string {
   const end = new Date(weekKeys[6] + "T16:00:00Z");
   const a = nyMonthDay(start);
   const b = nyMonthDay(end);
-  return `${a}–${b} · Domains only`;
+  return `${a}–${b} · Roles only`;
 }
 
 function groupLiveIntoDays(
@@ -248,11 +248,11 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
     source === "loading"
       ? "Loading…"
       : source === "live"
-        ? "Live · Domains"
+        ? "Live · Roles"
         : source === "standing"
-          ? "Standing ALO · Domains"
+          ? "Standing ALO · Roles"
           : authenticated
-            ? "Live · Domains"
+            ? "Live · Roles"
             : "Sign in";
 
   return (
@@ -288,10 +288,10 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
         {days.length === 0 && (
           <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-3 py-4 text-sm text-navy/55">
             {source === "loading"
-              ? "Loading domain agenda…"
+              ? "Loading role agenda…"
               : source === "live" || source === "standing" || authenticated
-                ? `No domain agenda items${domain !== "All" ? ` for ${domainDisplayName(domain)}` : ""} this week.`
-                : "Sign in to load domain Calendar."}
+                ? `No role agenda items${domain !== "All" ? ` for ${domainDisplayName(domain)}` : ""} this week.`
+                : "Sign in to load Calendar."}
           </p>
         )}
         {days.map((day) => (

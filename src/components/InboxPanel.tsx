@@ -96,9 +96,9 @@ export function InboxPanel({ domain }: { domain: Domain }) {
     source === "loading"
       ? "Loading…"
       : source === "live"
-        ? "Live · Domains"
+        ? "Live · Roles"
         : authenticated
-          ? "Live · Domains"
+          ? "Live · Roles"
           : "Sign in";
 
   return (
@@ -116,7 +116,7 @@ export function InboxPanel({ domain }: { domain: Domain }) {
         <p className="min-w-0 flex-1 text-[10px] text-navy/55">
           {statusLabel}
           {" · "}
-          domain labels only
+          role labels only
           {domain !== "All" ? ` · ${domainDisplayName(domain)}` : ""}
           {updatedLabel ? ` · ${updatedLabel}` : ""}
           {refreshing && !updatedLabel ? " · Refreshing…" : ""}
@@ -178,12 +178,12 @@ export function InboxPanel({ domain }: { domain: Domain }) {
       {items.length === 0 && (
         <p className="py-2 text-xs text-navy/55">
           {source === "loading"
-            ? "Loading domain inbox…"
+            ? "Loading role inbox…"
             : source === "live" || authenticated
               ? statusFilter !== "all"
                 ? `No items · ${TRIAGE_STATUS_LABEL[statusFilter]}`
-                : "No domain inbox items"
-              : "Sign in to load domain Gmail"}
+                : "No role inbox items"
+              : "Sign in to load Gmail"}
         </p>
       )}
       {items.map((item, i) => (

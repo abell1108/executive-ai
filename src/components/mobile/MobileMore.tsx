@@ -151,7 +151,7 @@ export function MobileMore({
           }
         />
         <MoreRow
-          title="Domains"
+          title="Roles"
           sub={domainSub}
           onClick={onOpenDomains}
           icon={

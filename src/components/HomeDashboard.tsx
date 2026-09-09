@@ -285,7 +285,7 @@ export function HomeDashboard() {
     } else if (aloSoon) {
       parts.push({ text: "ALO ahead", highlight: true });
     } else {
-      parts.push({ text: "Domains quiet" });
+      parts.push({ text: "Roles quiet" });
     }
     if (inboxCount != null) {
       parts.push({ text: `${inboxCount} inbox` });
@@ -302,9 +302,9 @@ export function HomeDashboard() {
     return parts;
   }, [todayFocus, aloSoon, inboxCount, approvalCount]);
 
-  const agendaSub = aloSoon ? "Wed prep + Sat ALO" : "This week · Domains";
+  const agendaSub = aloSoon ? "Wed prep + Sat ALO" : "This week · Roles";
   const inboxSub =
-    inboxCount != null ? "Domain emails · live" : "Sign in for live";
+    inboxCount != null ? "Role emails · live" : "Sign in for live";
   const approvalSub =
     approvalCount > 0
       ? `${approvalCount} draft${approvalCount === 1 ? "" : "s"} need your OK before send`
@@ -314,12 +314,12 @@ export function HomeDashboard() {
     agendaWeekCount,
     calKnown,
     (n) =>
-      `${n} domain event${n === 1 ? "" : "s"} on this week's agenda`,
+      `${n} role event${n === 1 ? "" : "s"} on this week's agenda`,
   );
   const inboxBadge = countBadgeProps(
     inboxCount,
     inboxCount != null,
-    (n) => `${n} domain email${n === 1 ? "" : "s"} in the EA inbox`,
+    (n) => `${n} role email${n === 1 ? "" : "s"} in the EA inbox`,
   );
   const approvalBadge: CountBadge = {
     display: String(approvalCount),
@@ -336,7 +336,7 @@ export function HomeDashboard() {
     calendarMonthCount,
     calKnown,
     (n) =>
-      `${n} domain event${n === 1 ? "" : "s"} on the calendar this month`,
+      `${n} role event${n === 1 ? "" : "s"} on the calendar this month`,
   );
 
   const restNeedsAttention = collisionDays > 0;
@@ -553,8 +553,8 @@ export function HomeDashboard() {
           <div className="relative flex min-h-[140px] flex-col rounded-2xl border border-[rgba(27,54,68,0.12)] bg-white p-4 shadow-sm sm:min-h-[150px]">
             <span
               className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal text-[10px] font-bold text-white"
-              title="6 organizational domains — tap a chip to filter the desk"
-              aria-label="6 organizational domains — tap a chip to filter the desk"
+              title="6 organizational roles — tap a chip to filter the desk"
+              aria-label="6 organizational roles — tap a chip to filter the desk"
             >
               6
             </span>
@@ -563,7 +563,7 @@ export function HomeDashboard() {
                 ▤
               </span>
               <h3 className="font-serif text-[16px] font-bold text-navy sm:text-[17px]">
-                Domains
+                Roles
               </h3>
             </div>
             <div className="mt-auto flex flex-wrap gap-1.5">

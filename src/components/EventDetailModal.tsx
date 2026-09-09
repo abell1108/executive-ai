@@ -257,7 +257,7 @@ export function EventDetailModal({
           {triage.length > 0 && (
             <div className="rounded-xl border border-[rgba(217,119,6,0.25)] bg-[#FFF8EE] px-3 py-3">
               <h3 className="mb-2 font-serif text-sm font-semibold text-navy">
-                Inbox triage for that day / domain
+                Inbox triage for that day / role
               </h3>
               <ul className="space-y-2">
                 {triage.map((item, i) => (
@@ -346,7 +346,7 @@ export function DaySummaryModal({
               {dayLabel}
             </h2>
             <p className="mt-0.5 text-xs text-navy/55">
-              Domain events · inbox triage · America/New_York
+              Role events · inbox triage · America/New_York
             </p>
           </div>
           <button
@@ -365,7 +365,7 @@ export function DaySummaryModal({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {empty && (
             <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-3 py-4 text-sm text-navy/55">
-              No domain events or triage for this day.
+              No role events or triage for this day.
             </p>
           )}
 
