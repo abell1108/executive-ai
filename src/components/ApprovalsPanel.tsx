@@ -26,18 +26,27 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
   return (
     <div className="min-h-0 flex-shrink overflow-hidden rounded-[14px] border border-transparent border-l-[5px] border-l-risk-text bg-risk-bg px-3 py-2.5 shadow-sm">
       <h3 className="mb-1 font-serif text-[13px] font-semibold text-risk-text">
-        Approvals queue{" "}
+        Approval Queue{" "}
         <span className="ml-2 inline-block align-middle rounded-full border border-[rgba(153,27,27,0.25)] bg-white px-2 py-0.5 text-[10px] font-bold text-risk-text">
-          Needs Alisa{pendingCount > 0 ? ` · ${pendingCount}` : ""}
+          {pendingCount > 0
+            ? `Needs your OK · ${pendingCount}`
+            : "Needs your OK"}
         </span>
       </h3>
-      <p className="mb-1.5 text-[10px] text-[rgba(153,27,27,0.75)]">
-        Approve marks approved in-app — does not send email (MVP)
+      <p className="mb-2 text-[11px] leading-snug text-[rgba(153,27,27,0.85)]">
+        Outbound drafts land here first. Approve = you green-light (still does
+        not auto-send in MVP). Hold = pause. Nothing goes out without your OK.
       </p>
       {visible.length === 0 && (
-        <p className="py-2 text-xs text-[rgba(153,27,27,0.7)]">
-          No domain approvals queued
-        </p>
+        <div className="rounded-lg border border-[rgba(153,27,27,0.15)] bg-white/70 px-3 py-3">
+          <p className="text-xs font-semibold text-risk-text">
+            Queue clear — nothing waiting
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-[rgba(153,27,27,0.75)]">
+            When Roxy prepares outbound email replies, invites, or posts,
+            they&apos;ll show up here for your OK before anything is sent.
+          </p>
+        </div>
       )}
       {visible.map((item) => (
         <div
@@ -58,28 +67,29 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
                 ? "Approved"
                 : item.status === "held"
                   ? "On hold"
-                  : "Needs approval"}
+                  : "Needs your OK"}
             </span>
             <div className="min-w-0 flex-1">
               <strong className="block text-xs font-semibold text-risk-text">
                 {item.title}
               </strong>
               <div className="mt-0.5 text-[10px] text-[rgba(153,27,27,0.7)]">
-                {item.meta} · {item.domain}
+                {item.domain}
+                {item.meta ? ` · ${item.meta}` : ""}
               </div>
               {item.status === "pending" && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={() => setStatus(item.id, "approved")}
-                    className="rounded-full bg-navy px-3 py-1 text-[10px] font-bold text-white hover:bg-[#152b36]"
+                    className="rounded-full bg-navy px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#152b36]"
                   >
                     Approve
                   </button>
                   <button
                     type="button"
                     onClick={() => setStatus(item.id, "held")}
-                    className="rounded-full border border-[rgba(153,27,27,0.3)] bg-white px-3 py-1 text-[10px] font-bold text-risk-text hover:border-alert-text hover:text-alert-text"
+                    className="rounded-full border border-[rgba(153,27,27,0.3)] bg-white px-3 py-1.5 text-[11px] font-bold text-risk-text hover:border-alert-text hover:text-alert-text"
                   >
                     Hold
                   </button>

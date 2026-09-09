@@ -73,6 +73,50 @@ function todayKeyET(now = new Date()): string {
   }).format(now);
 }
 
+function etWeekdayShort(d: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  }).format(d);
+}
+
+/** Sunday–Saturday of the current week in America/New_York as date keys. */
+function currentWeekKeysET(now = new Date()): string[] {
+  const todayKey = todayKeyET(now);
+  const [y, m, day] = todayKey.split("-").map(Number);
+  const noonUtcApprox = new Date(Date.UTC(y, m - 1, day, 16, 0, 0));
+  const dowMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  const dow = dowMap[etWeekdayShort(noonUtcApprox)] ?? 0;
+  const keys: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const offset = i - dow;
+    const d = new Date(noonUtcApprox.getTime() + offset * 86400000);
+    keys.push(todayKeyET(d));
+  }
+  return keys;
+}
+
+function etMonthParts(now = new Date()): { year: number; month: number } {
+  const key = todayKeyET(now);
+  const [y, m] = key.split("-").map(Number);
+  return { year: y, month: m };
+}
+
+function etMonthShort(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+  }).format(now);
+}
+
 function etHour(iso: string): number | null {
   try {
     if (!/T/.test(iso) && /^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
@@ -126,12 +170,20 @@ function HexLogo({ className = "h-7 w-7" }: { className?: string }) {
   );
 }
 
+const SIGN_IN_TIP = "Sign in via Settings to see live counts";
+
 export function HomeDashboard() {
   const { status } = useSession();
   const greeting = etGreeting();
   const dateLabel = etDateLabel();
+  const monthShort = etMonthShort();
 
   const [inboxCount, setInboxCount] = useState<number | null>(null);
+  const [agendaWeekCount, setAgendaWeekCount] = useState<number | null>(null);
+  const [calendarMonthCount, setCalendarMonthCount] = useState<number | null>(
+    null,
+  );
+  const [calKnown, setCalKnown] = useState(false);
   const [collisionDays, setCollisionDays] = useState(0);
   const [todayFocus, setTodayFocus] = useState<string | null>(null);
   const [aloSoon, setAloSoon] = useState(false);
@@ -157,13 +209,29 @@ export function HomeDashboard() {
 
         const events = Array.isArray(cal.events) ? cal.events : [];
         if (cal.source === "live" || cal.source === "standing") {
+          setCalKnown(true);
+          const weekKeys = new Set(currentWeekKeysET());
+          const weekEvents = events.filter(
+            (e) => e.start && weekKeys.has(etDateKey(e.start)),
+          );
+          setAgendaWeekCount(weekEvents.length);
+
+          const { year, month } = etMonthParts();
+          const monthEvents = events.filter((e) => {
+            if (!e.start) return false;
+            const key = etDateKey(e.start);
+            const [y, m] = key.split("-").map(Number);
+            return y === year && m === month;
+          });
+          setCalendarMonthCount(monthEvents.length);
+
           setCollisionDays(countEveningStacks(events));
           const today = todayKeyET();
           const todayEvents = events.filter(
             (e) => e.start && etDateKey(e.start) === today,
           );
-          const aloToday = todayEvents.find((e) =>
-            /alo/i.test(e.title || "") || e.domain === "ALO",
+          const aloToday = todayEvents.find(
+            (e) => /alo/i.test(e.title || "") || e.domain === "ALO",
           );
           if (aloToday) {
             setTodayFocus("ALO prep");
@@ -178,6 +246,9 @@ export function HomeDashboard() {
           );
           setAloSoon(hasAlo);
         } else {
+          setCalKnown(false);
+          setAgendaWeekCount(null);
+          setCalendarMonthCount(null);
           setCollisionDays(0);
           setTodayFocus(null);
           setAloSoon(false);
@@ -185,6 +256,9 @@ export function HomeDashboard() {
       } catch {
         if (!cancelled) {
           setInboxCount(null);
+          setCalKnown(false);
+          setAgendaWeekCount(null);
+          setCalendarMonthCount(null);
           setCollisionDays(0);
           setTodayFocus(null);
           setAloSoon(false);
@@ -227,11 +301,45 @@ export function HomeDashboard() {
 
   const agendaSub = aloSoon ? "Wed prep + Sat ALO" : "This week · Domains";
   const inboxSub =
-    inboxCount != null ? `${inboxCount} domain` : "Sign in for live";
+    inboxCount != null ? "Domain emails · live" : "Sign in for live";
   const approvalSub =
     approvalCount > 0
-      ? `${approvalCount} draft waiting your OK`
-      : "No drafts waiting";
+      ? `${approvalCount} draft${approvalCount === 1 ? "" : "s"} need your OK before send`
+      : "Nothing waiting — Roxy won't send without your OK";
+
+  const agendaBadge = countBadgeProps(
+    agendaWeekCount,
+    calKnown,
+    (n) =>
+      `${n} domain event${n === 1 ? "" : "s"} on this week's agenda`,
+  );
+  const inboxBadge = countBadgeProps(
+    inboxCount,
+    inboxCount != null,
+    (n) => `${n} domain email${n === 1 ? "" : "s"} in the EA inbox`,
+  );
+  const approvalBadge: CountBadge = {
+    display: String(approvalCount),
+    title:
+      approvalCount === 0
+        ? "No outbound drafts waiting for Alisa's OK"
+        : `${approvalCount} draft${approvalCount === 1 ? "" : "s"} waiting for your approval before anything is sent`,
+    ariaLabel:
+      approvalCount === 0
+        ? "No outbound drafts waiting for Alisa's OK"
+        : `${approvalCount} draft${approvalCount === 1 ? "" : "s"} waiting for your approval before anything is sent`,
+  };
+  const calendarBadge = countBadgeProps(
+    calendarMonthCount,
+    calKnown,
+    (n) =>
+      `${n} domain event${n === 1 ? "" : "s"} on the calendar this month`,
+  );
+
+  const restNeedsAttention = collisionDays > 0;
+  const restGuardTitle = restNeedsAttention
+    ? `${collisionDays} evening-stack day${collisionDays === 1 ? "" : "s"} with burnout or collision risk — review rest guards`
+    : "Buffers, lighter evening, and wind-down are protected";
 
   return (
     <div className="flex min-h-screen flex-col bg-cream text-navy">
@@ -352,44 +460,43 @@ export function HomeDashboard() {
             title="Agenda"
             sub={agendaSub}
             icon="🗓"
-            badges={["1", "2"]}
+            count={agendaBadge}
           />
           <SnapCard
             href="/desk?panel=inbox"
             title="Inbox"
             sub={inboxSub}
             icon="✉"
-            badges={["2", "3"]}
+            count={inboxBadge}
           />
           <SnapCard
             href="/desk?panel=approvals"
             title="Approval Queue"
-            sub={
-              approvalCount > 0 ? (
-                <>
-                  <span className="font-bold text-teal">{approvalCount}</span>{" "}
-                  draft waiting your OK
-                </>
-              ) : (
-                approvalSub
-              )
-            }
+            sub={approvalSub}
             icon="☑"
-            badges={["3", "1"]}
+            count={approvalBadge}
             emphasize
-            titleCaps
           />
           <SnapCard
             href="/desk?panel=calendar"
             title="Calendar"
-            sub="Sep view"
+            sub={`${monthShort} view`}
             icon="📅"
-            badges={["4"]}
+            count={calendarBadge}
           />
           <Link
             href="/desk?panel=rest"
-            className="group flex min-h-[140px] flex-col rounded-2xl border-2 border-teal/40 bg-[rgba(45,106,108,0.08)] p-4 no-underline shadow-sm transition hover:border-teal hover:shadow-md sm:min-h-[150px]"
+            className="group relative flex min-h-[140px] flex-col rounded-2xl border-2 border-teal/40 bg-[rgba(45,106,108,0.08)] p-4 no-underline shadow-sm transition hover:border-teal hover:shadow-md sm:min-h-[150px]"
           >
+            {restNeedsAttention ? (
+              <span
+                className="absolute right-3 top-3 grid min-h-5 min-w-5 place-items-center rounded-full bg-alert-text px-1.5 text-[10px] font-bold text-white"
+                title={restGuardTitle}
+                aria-label={restGuardTitle}
+              >
+                {collisionDays}
+              </span>
+            ) : null}
             <div className="mb-2 flex items-center gap-2.5">
               <span
                 className="grid h-9 w-9 place-items-center rounded-full bg-teal text-white"
@@ -404,15 +511,27 @@ export function HomeDashboard() {
             <p className="flex-1 text-[12px] leading-snug text-navy/65 sm:text-[13px]">
               Buffers OK · lighter evening reserved · wind-down protected
             </p>
-            <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-teal px-3 py-1 text-[11px] font-bold text-white">
-              ✓ Guarded
+            <span
+              className={
+                restNeedsAttention
+                  ? "mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-alert-text px-3 py-1 text-[11px] font-bold text-white"
+                  : "mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-teal px-3 py-1 text-[11px] font-bold text-white"
+              }
+              title={restGuardTitle}
+              aria-label={restGuardTitle}
+            >
+              {restNeedsAttention ? "Review" : "✓ Guarded"}
             </span>
           </Link>
           <div className="relative flex min-h-[140px] flex-col rounded-2xl border border-[rgba(27,54,68,0.12)] bg-white p-4 shadow-sm sm:min-h-[150px]">
-            <span className="absolute left-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal text-[10px] font-bold text-white">
+            <span
+              className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal text-[10px] font-bold text-white"
+              title="6 organizational domains — tap a chip to filter the desk"
+              aria-label="6 organizational domains — tap a chip to filter the desk"
+            >
               6
             </span>
-            <div className="mb-2 flex items-center gap-2 pl-6">
+            <div className="mb-2 flex items-center gap-2">
               <span className="text-lg" aria-hidden>
                 ▤
               </span>
@@ -461,22 +580,42 @@ export function HomeDashboard() {
   );
 }
 
+type CountBadge = {
+  display: string;
+  title: string;
+  ariaLabel: string;
+};
+
+function countBadgeProps(
+  count: number | null,
+  known: boolean,
+  whenKnown: (n: number) => string,
+): CountBadge {
+  if (!known || count == null) {
+    return {
+      display: "—",
+      title: SIGN_IN_TIP,
+      ariaLabel: SIGN_IN_TIP,
+    };
+  }
+  const tip = whenKnown(count);
+  return { display: String(count), title: tip, ariaLabel: tip };
+}
+
 function SnapCard({
   href,
   title,
   sub,
   icon,
-  badges,
+  count,
   emphasize,
-  titleCaps,
 }: {
   href: string;
   title: string;
   sub: ReactNode;
   icon: string;
-  badges?: string[];
+  count?: CountBadge;
   emphasize?: boolean;
-  titleCaps?: boolean;
 }) {
   return (
     <Link
@@ -487,29 +626,20 @@ function SnapCard({
           : "group relative flex min-h-[140px] flex-col rounded-2xl border border-[rgba(27,54,68,0.12)] bg-white p-4 no-underline shadow-sm transition hover:border-teal/50 hover:shadow-md sm:min-h-[150px]"
       }
     >
-      {badges?.map((b, i) => (
+      {count ? (
         <span
-          key={`${b}-${i}`}
-          className={
-            i === 0
-              ? "absolute left-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal text-[10px] font-bold text-white"
-              : "absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-teal text-[10px] font-bold text-white"
-          }
+          className="absolute right-3 top-3 grid min-h-5 min-w-5 place-items-center rounded-full bg-teal px-1.5 text-[10px] font-bold text-white"
+          title={count.title}
+          aria-label={count.ariaLabel}
         >
-          {b}
+          {count.display}
         </span>
-      ))}
-      <div className="mb-2 flex items-center gap-2.5 pt-4">
+      ) : null}
+      <div className="mb-2 flex items-center gap-2.5">
         <span className="text-xl" aria-hidden>
           {icon}
         </span>
-        <h3
-          className={
-            titleCaps
-              ? "font-serif text-[15px] font-bold uppercase tracking-wide text-navy sm:text-[16px]"
-              : "font-serif text-[16px] font-bold text-navy sm:text-[17px]"
-          }
-        >
+        <h3 className="font-serif text-[16px] font-bold text-navy sm:text-[17px]">
           {title}
         </h3>
       </div>
