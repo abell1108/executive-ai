@@ -38,13 +38,13 @@ export function DomainsSheet({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl border border-[rgba(27,54,68,0.12)] bg-cream p-4 shadow-2xl sm:rounded-2xl"
+        className="w-full max-w-lg rounded-t-2xl border border-[rgba(27,54,68,0.12)] bg-cream p-4 shadow-2xl sm:rounded-2xl md:max-w-xl md:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
           <h2
             id={titleId}
-            className="font-serif text-lg font-bold text-navy"
+            className="font-serif text-lg font-bold text-navy md:text-xl"
           >
             Domains
           </h2>
@@ -56,11 +56,11 @@ export function DomainsSheet({
             Close
           </button>
         </div>
-        <p className="mb-3 text-[12px] text-navy/55">
+        <p className="mb-3 text-[12px] text-navy/55 md:text-[13px]">
           Filter Agenda, Inbox, Approvals, and Calendar. No chip scroll on
           mobile — pick one here.
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 md:gap-2.5">
           {DOMAINS.map((d) => {
             const selected = activeDomain === d;
             return (

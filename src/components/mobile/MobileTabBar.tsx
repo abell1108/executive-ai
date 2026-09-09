@@ -14,7 +14,7 @@ const TABS: {
     label: "Home",
     icon: (active) => (
       <svg
-        className="h-5 w-5"
+        className="h-5 w-5 md:h-6 md:w-6"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -34,7 +34,7 @@ const TABS: {
     label: "Agenda",
     icon: (active) => (
       <svg
-        className="h-5 w-5"
+        className="h-5 w-5 md:h-6 md:w-6"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -51,7 +51,7 @@ const TABS: {
     label: "Inbox",
     icon: (active) => (
       <svg
-        className="h-5 w-5"
+        className="h-5 w-5 md:h-6 md:w-6"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -72,7 +72,7 @@ const TABS: {
     label: "Calendar",
     icon: (active) => (
       <svg
-        className="h-5 w-5"
+        className="h-5 w-5 md:h-6 md:w-6"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -90,7 +90,7 @@ const TABS: {
     label: "More",
     icon: (active) => (
       <svg
-        className="h-5 w-5"
+        className="h-5 w-5 md:h-6 md:w-6"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -119,7 +119,7 @@ export function MobileTabBar({
       className="fixed inset-x-0 bottom-0 z-40 border-t border-[rgba(27,54,68,0.12)] bg-cream/95 backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)]"
       aria-label="Primary"
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-between px-1 pt-1.5 pb-1">
+      <div className="mx-auto flex max-w-lg items-stretch justify-between px-1 pt-1.5 pb-1 md:max-w-2xl md:px-2 md:pt-2 md:pb-1.5">
         {TABS.map((tab) => {
           const isActive = active === tab.id;
           const showBadge =
@@ -134,14 +134,14 @@ export function MobileTabBar({
               aria-current={isActive ? "page" : undefined}
               className={
                 isActive
-                  ? "relative flex min-h-[48px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-teal"
-                  : "relative flex min-h-[48px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-navy/45"
+                  ? "relative flex min-h-[48px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-teal md:min-h-[56px] md:gap-1"
+                  : "relative flex min-h-[48px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-navy/45 md:min-h-[56px] md:gap-1"
               }
             >
               <span className="relative">
                 {tab.icon(isActive)}
                 {showBadge ? (
-                  <span className="absolute -right-2.5 -top-1.5 grid min-h-[16px] min-w-[16px] place-items-center rounded-full bg-teal px-1 text-[9px] font-bold leading-none text-white">
+                  <span className="absolute -right-2.5 -top-1.5 grid min-h-[16px] min-w-[16px] place-items-center rounded-full bg-teal px-1 text-[9px] font-bold leading-none text-white md:min-h-[18px] md:min-w-[18px] md:text-[10px]">
                     {inboxBadge! > 99 ? "99+" : inboxBadge}
                   </span>
                 ) : null}
@@ -149,8 +149,8 @@ export function MobileTabBar({
               <span
                 className={
                   isActive
-                    ? "text-[10px] font-semibold tracking-tight"
-                    : "text-[10px] font-medium tracking-tight"
+                    ? "text-[10px] font-semibold tracking-tight md:text-[12px]"
+                    : "text-[10px] font-medium tracking-tight md:text-[12px]"
                 }
               >
                 {tab.label}

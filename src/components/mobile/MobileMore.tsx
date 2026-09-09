@@ -23,18 +23,18 @@ function MoreRow({
   href?: string;
 }) {
   const className =
-    "flex w-full items-center gap-3 rounded-2xl border border-[rgba(27,54,68,0.08)] bg-white px-4 py-3.5 text-left shadow-sm";
+    "flex w-full items-center gap-3 rounded-2xl border border-[rgba(27,54,68,0.08)] bg-white px-4 py-3.5 text-left shadow-sm md:gap-4 md:px-5 md:py-4";
   const body = (
     <>
       <span
-        className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-[rgba(45,106,108,0.12)] text-teal"
+        className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-[rgba(45,106,108,0.12)] text-teal md:h-11 md:w-11"
         aria-hidden
       >
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold text-navy">{title}</span>
-        <span className="block text-[12px] text-navy/50">{sub}</span>
+        <span className="block text-[15px] font-semibold text-navy md:text-[16px]">{title}</span>
+        <span className="block text-[12px] text-navy/50 md:text-[13px]">{sub}</span>
       </span>
       <span className="text-navy/35" aria-hidden>
         ›
@@ -72,18 +72,18 @@ export function MobileMore({
 }) {
   if (subview === "approvals") {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4">
         <button
           type="button"
           onClick={() => onSubview("menu")}
-          className="mb-2 self-start text-[12px] font-semibold text-teal"
+          className="mb-2 self-start text-[12px] font-semibold text-teal md:text-[13px]"
         >
           ‹ More
         </button>
-        <h1 className="font-serif text-[24px] font-bold text-navy">
+        <h1 className="font-serif text-[24px] font-bold text-navy md:text-[28px]">
           Approval Queue
         </h1>
-        <p className="mb-3 text-[13px] text-navy/55">
+        <p className="mb-3 text-[13px] text-navy/55 md:mb-4 md:text-[14px]">
           Nothing sends without your OK.
         </p>
         <ApprovalsPanel domain={domain} />
@@ -93,15 +93,15 @@ export function MobileMore({
 
   if (subview === "rest") {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+      <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4">
         <button
           type="button"
           onClick={() => onSubview("menu")}
-          className="mb-2 self-start text-[12px] font-semibold text-teal"
+          className="mb-2 self-start text-[12px] font-semibold text-teal md:text-[13px]"
         >
           ‹ More
         </button>
-        <h1 className="mb-3 font-serif text-[24px] font-bold text-navy">
+        <h1 className="mb-3 font-serif text-[24px] font-bold text-navy md:mb-4 md:text-[28px]">
           Rest &amp; burnout guards
         </h1>
         <RestGuards />
@@ -115,11 +115,11 @@ export function MobileMore({
       : `Filter · ${domainDisplayName(domain)}`;
 
   return (
-    <div className="px-4 pb-4 pt-2">
-      <h1 className="mb-4 text-center font-serif text-[28px] font-bold tracking-tight text-navy">
+    <div className="px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4">
+      <h1 className="mb-4 text-center font-serif text-[28px] font-bold tracking-tight text-navy md:mb-5 md:text-[34px]">
         More
       </h1>
-      <div className="space-y-2.5">
+      <div className="space-y-2.5 md:space-y-3">
         <MoreRow
           title="Approval Queue"
           sub="Nothing sends without your OK"

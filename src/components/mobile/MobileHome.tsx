@@ -229,20 +229,20 @@ export function MobileHome({
   }, [focusTitle, meetingsToday]);
 
   return (
-    <div className="px-4 pb-4 pt-2">
-      <header className="mb-4 flex items-start justify-between gap-3">
+    <div className="px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4">
+      <header className="mb-4 flex items-start justify-between gap-3 md:mb-5">
         <div>
-          <h1 className="font-serif text-[28px] font-bold tracking-tight text-navy">
+          <h1 className="font-serif text-[28px] font-bold tracking-tight text-navy md:text-[34px]">
             Today
           </h1>
           {updatedLabel ? (
-            <p className="mt-0.5 text-[11px] text-navy/45">{updatedLabel}</p>
+            <p className="mt-0.5 text-[11px] text-navy/45 md:text-[12px]">{updatedLabel}</p>
           ) : null}
         </div>
         <button
           type="button"
           onClick={() => onNavigate("inbox")}
-          className="relative mt-1 grid h-10 w-10 place-items-center rounded-full text-navy"
+          className="relative mt-1 grid h-10 w-10 place-items-center rounded-full text-navy md:h-11 md:w-11"
           aria-label="Notifications / inbox"
         >
           <svg
@@ -267,20 +267,20 @@ export function MobileHome({
       </header>
 
       <section
-        className="mb-3 rounded-2xl border border-[rgba(27,54,68,0.08)] bg-white p-4 shadow-sm"
+        className="mb-3 rounded-2xl border border-[rgba(27,54,68,0.08)] bg-white p-4 shadow-sm md:mb-4 md:p-5"
         aria-label="Focus"
       >
         <div className="mb-2 flex items-center gap-1.5">
           <LeafIcon />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-teal">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-teal md:text-[12px]">
             Focus
           </span>
           <span className="h-1.5 w-1.5 rounded-full bg-teal" aria-hidden />
         </div>
-        <h2 className="font-serif text-[20px] font-bold leading-snug text-navy">
+        <h2 className="font-serif text-[20px] font-bold leading-snug text-navy md:text-[24px]">
           {focusTitle ?? (calKnown ? "Clear runway today" : "Sign in for live focus")}
         </h2>
-        <p className="mt-1 text-[13px] text-navy/60">
+        <p className="mt-1 text-[13px] text-navy/60 md:text-[15px]">
           {focusSub ??
             (calKnown
               ? "No domain priority flagged · Protect 9–5"
@@ -302,7 +302,7 @@ export function MobileHome({
           <button
             type="button"
             onClick={() => onNavigate("agenda")}
-            className="text-[12px] font-semibold text-teal"
+            className="text-[12px] font-semibold text-teal md:text-[13px]"
           >
             High priority ›
           </button>
@@ -310,13 +310,13 @@ export function MobileHome({
       </section>
 
       <section
-        className="mb-3 grid grid-cols-3 gap-2"
+        className="mb-3 grid grid-cols-3 gap-2 md:mb-4 md:gap-3"
         aria-label="Quick stats"
       >
         <button
           type="button"
           onClick={() => onNavigate("agenda")}
-          className="rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-2 py-3 text-center shadow-sm"
+          className="rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-2 py-3 text-center shadow-sm md:px-3 md:py-4"
         >
           <span className="mx-auto mb-1 grid h-7 w-7 place-items-center text-teal" aria-hidden>
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -324,15 +324,15 @@ export function MobileHome({
               <path strokeLinecap="round" d="M8 3.5v3M16 3.5v3M3.5 9.5h17" />
             </svg>
           </span>
-          <div className="font-serif text-xl font-bold text-navy">
+          <div className="font-serif text-xl font-bold text-navy md:text-2xl">
             {meetingsToday != null ? meetingsToday : "—"}
           </div>
-          <div className="text-[10px] font-medium text-navy/55">Today</div>
+          <div className="text-[10px] font-medium text-navy/55 md:text-[11px]">Today</div>
         </button>
         <button
           type="button"
           onClick={() => onNavigate("inbox")}
-          className="rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-2 py-3 text-center shadow-sm"
+          className="rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-2 py-3 text-center shadow-sm md:px-3 md:py-4"
         >
           <span className="mx-auto mb-1 grid h-7 w-7 place-items-center text-teal" aria-hidden>
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -340,15 +340,15 @@ export function MobileHome({
               <path strokeLinecap="round" strokeLinejoin="round" d="m4 7 8 6 8-6" />
             </svg>
           </span>
-          <div className="font-serif text-xl font-bold text-navy">
+          <div className="font-serif text-xl font-bold text-navy md:text-2xl">
             {inboxCount != null ? inboxCount : "—"}
           </div>
-          <div className="text-[10px] font-medium text-navy/55">Unread</div>
+          <div className="text-[10px] font-medium text-navy/55 md:text-[11px]">Unread</div>
         </button>
         <button
           type="button"
           onClick={() => onNavigate("more", { more: "approvals" })}
-          className="rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-2 py-3 text-center shadow-sm"
+          className="rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-2 py-3 text-center shadow-sm md:px-3 md:py-4"
         >
           <span className="mx-auto mb-1 grid h-7 w-7 place-items-center text-teal" aria-hidden>
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -356,8 +356,8 @@ export function MobileHome({
               <path strokeLinecap="round" strokeLinejoin="round" d="m8.5 12.2 2.4 2.3 4.6-5" />
             </svg>
           </span>
-          <div className="font-serif text-xl font-bold text-navy">{approvalCount}</div>
-          <div className="text-[10px] font-medium text-navy/55">Pending</div>
+          <div className="font-serif text-xl font-bold text-navy md:text-2xl">{approvalCount}</div>
+          <div className="text-[10px] font-medium text-navy/55 md:text-[11px]">Pending</div>
         </button>
       </section>
 
@@ -365,7 +365,7 @@ export function MobileHome({
         <div className="mb-3">
           <div
             role="alert"
-            className="flex items-center gap-2.5 rounded-xl border border-[rgba(27,54,68,0.1)] bg-white px-3.5 py-3 shadow-sm"
+            className="flex items-center gap-2.5 rounded-xl border border-[rgba(27,54,68,0.1)] bg-white px-3.5 py-3 shadow-sm md:gap-3 md:px-4 md:py-3.5"
           >
             <span
               className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-navy text-sm font-bold text-white"
@@ -373,7 +373,7 @@ export function MobileHome({
             >
               !
             </span>
-            <p className="text-[13px] font-semibold text-navy">
+            <p className="text-[13px] font-semibold text-navy md:text-[14px]">
               Collision detected
               <span className="font-normal text-navy/55">
                 {" "}
@@ -390,24 +390,24 @@ export function MobileHome({
       )}
 
       <section aria-label="Upcoming and recent">
-        <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-navy/45">
+        <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-navy/45 md:mb-3 md:text-[12px]">
           Upcoming &amp; Recent
         </h3>
         {upcoming.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.18)] bg-white/60 px-3 py-4 text-[13px] text-navy/55">
+          <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.18)] bg-white/60 px-3 py-4 text-[13px] text-navy/55 md:px-4 md:py-5 md:text-[14px]">
             {calKnown
               ? "No domain events on the calendar today."
               : "Sign in to load today's agenda."}
           </p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2 md:space-y-2.5">
             {upcoming.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center gap-3 rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-3 py-3 shadow-sm"
+                className="flex items-center gap-3 rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-3 py-3 shadow-sm md:gap-3.5 md:px-4 md:py-3.5"
               >
                 <span
-                  className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-[rgba(45,106,108,0.1)] text-teal"
+                  className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-[rgba(45,106,108,0.1)] text-teal md:h-10 md:w-10"
                   aria-hidden
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -416,12 +416,12 @@ export function MobileHome({
                   </svg>
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-semibold text-navy">
+                  <p className="truncate text-[13px] font-semibold text-navy md:text-[15px]">
                     {item.title}
                   </p>
-                  <p className="text-[11px] text-navy/50">{item.meta}</p>
+                  <p className="text-[11px] text-navy/50 md:text-[12px]">{item.meta}</p>
                 </div>
-                <span className="flex-shrink-0 rounded-full border border-[rgba(45,106,108,0.35)] bg-[rgba(45,106,108,0.08)] px-2.5 py-0.5 text-[11px] font-semibold text-teal">
+                <span className="flex-shrink-0 rounded-full border border-[rgba(45,106,108,0.35)] bg-[rgba(45,106,108,0.08)] px-2.5 py-0.5 text-[11px] font-semibold text-teal md:px-3 md:text-[12px]">
                   {item.badge}
                 </span>
               </li>

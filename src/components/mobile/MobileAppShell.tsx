@@ -208,7 +208,7 @@ export function MobileAppShell({
       <button
         type="button"
         onClick={() => setDomainsOpen(true)}
-        className="mb-2 inline-flex items-center gap-1 rounded-full border border-teal/30 bg-[rgba(45,106,108,0.08)] px-2.5 py-1 text-[11px] font-semibold text-teal"
+        className="mb-2 inline-flex items-center gap-1 rounded-full border border-teal/30 bg-[rgba(45,106,108,0.08)] px-2.5 py-1 text-[11px] font-semibold text-teal md:px-3 md:py-1.5 md:text-[12px]"
       >
         Domain · {domainDisplayName(domain)}
         <span aria-hidden>▾</span>
@@ -217,12 +217,12 @@ export function MobileAppShell({
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-cream text-navy lg:hidden">
-      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]">
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))] md:max-w-2xl md:pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))]">
         {tab === "home" ? <MobileHome onNavigate={onNavigate} /> : null}
 
         {tab === "agenda" ? (
-          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-            <h1 className="mb-1 font-serif text-[24px] font-bold text-navy">
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4">
+            <h1 className="mb-1 font-serif text-[24px] font-bold text-navy md:mb-2 md:text-[28px]">
               This Week&apos;s Agenda
             </h1>
             {domainHint}
@@ -231,15 +231,15 @@ export function MobileAppShell({
         ) : null}
 
         {tab === "inbox" ? (
-          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4">
             <div className="mb-2 flex items-start justify-between gap-2">
-              <h1 className="font-serif text-[24px] font-bold text-navy">
+              <h1 className="font-serif text-[24px] font-bold text-navy md:text-[28px]">
                 Inbox triage
               </h1>
               <button
                 type="button"
                 onClick={() => setDomainsOpen(true)}
-                className="inline-flex items-center gap-1 pt-1 text-[12px] font-semibold text-teal"
+                className="inline-flex items-center gap-1 pt-1 text-[12px] font-semibold text-teal md:text-[13px]"
               >
                 Filter
                 <svg
@@ -264,8 +264,8 @@ export function MobileAppShell({
         ) : null}
 
         {tab === "calendar" ? (
-          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-            <h1 className="mb-3 font-serif text-[24px] font-bold text-navy">
+          <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2 md:px-6 md:pb-6 md:pt-4">
+            <h1 className="mb-3 font-serif text-[24px] font-bold text-navy md:mb-4 md:text-[28px]">
               This Month&apos;s Calendar
             </h1>
             {domainHint}
