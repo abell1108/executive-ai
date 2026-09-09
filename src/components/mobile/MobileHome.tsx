@@ -8,6 +8,7 @@ import {
 } from "@/hooks/useLiveRefresh";
 import { CollisionBanner } from "@/components/CollisionBanner";
 import type { MobileTab } from "./MobileTabBar";
+import type { MoreSubview } from "./MobileMore";
 
 type GmailApiResponse = {
   source?: "live" | "none";
@@ -116,7 +117,7 @@ function LeafIcon() {
 export function MobileHome({
   onNavigate,
 }: {
-  onNavigate: (tab: MobileTab) => void;
+  onNavigate: (tab: MobileTab, opts?: { more?: MoreSubview }) => void;
 }) {
   const { status } = useSession();
   const [inboxCount, setInboxCount] = useState<number | null>(null);
@@ -346,7 +347,7 @@ export function MobileHome({
         </button>
         <button
           type="button"
-          onClick={() => onNavigate("approvals")}
+          onClick={() => onNavigate("more", { more: "approvals" })}
           className="rounded-xl border border-[rgba(27,54,68,0.08)] bg-white px-2 py-3 text-center shadow-sm"
         >
           <span className="mx-auto mb-1 grid h-7 w-7 place-items-center text-teal" aria-hidden>

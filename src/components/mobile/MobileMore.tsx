@@ -4,10 +4,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { domainDisplayName } from "@/lib/domain-label";
 import type { Domain } from "@/lib/types";
-import { CalendarMonth } from "@/components/CalendarMonth";
+import { ApprovalsPanel } from "@/components/ApprovalsPanel";
 import { RestGuards } from "@/components/RestGuards";
 
-export type MoreSubview = "menu" | "calendar" | "rest";
+export type MoreSubview = "menu" | "approvals" | "rest";
 
 function MoreRow({
   icon,
@@ -70,7 +70,7 @@ export function MobileMore({
   onOpenDomains: () => void;
   onAskRoxy: () => void;
 }) {
-  if (subview === "calendar") {
+  if (subview === "approvals") {
     return (
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
         <button
@@ -80,12 +80,13 @@ export function MobileMore({
         >
           ‹ More
         </button>
-        <h1 className="mb-3 font-serif text-[24px] font-bold text-navy">
-          This Month&apos;s Calendar
+        <h1 className="font-serif text-[24px] font-bold text-navy">
+          Approval Queue
         </h1>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <CalendarMonth domain={domain} />
-        </div>
+        <p className="mb-3 text-[13px] text-navy/55">
+          Nothing sends without your OK.
+        </p>
+        <ApprovalsPanel domain={domain} />
       </div>
     );
   }
@@ -120,13 +121,13 @@ export function MobileMore({
       </h1>
       <div className="space-y-2.5">
         <MoreRow
-          title="This Month's Calendar"
-          sub="View events and schedule"
-          onClick={() => onSubview("calendar")}
+          title="Approval Queue"
+          sub="Nothing sends without your OK"
+          onClick={() => onSubview("approvals")}
           icon={
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-              <rect x="3.5" y="5" width="17" height="15" rx="2" />
-              <path strokeLinecap="round" d="M8 3.5v3M16 3.5v3M3.5 9.5h17" />
+              <circle cx="12" cy="12" r="8.25" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="m8.5 12.2 2.4 2.3 4.6-5" />
             </svg>
           }
         />

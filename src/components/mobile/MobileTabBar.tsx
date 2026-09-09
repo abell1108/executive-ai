@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-export type MobileTab = "home" | "agenda" | "inbox" | "approvals" | "more";
+export type MobileTab = "home" | "agenda" | "inbox" | "calendar" | "more";
 
 const TABS: {
   id: MobileTab;
@@ -68,8 +68,8 @@ const TABS: {
     ),
   },
   {
-    id: "approvals",
-    label: "Approvals",
+    id: "calendar",
+    label: "Calendar",
     icon: (active) => (
       <svg
         className="h-5 w-5"
@@ -79,8 +79,9 @@ const TABS: {
         strokeWidth={active ? 2.25 : 1.75}
         aria-hidden
       >
-        <circle cx="12" cy="12" r="8.25" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="m8.5 12.2 2.4 2.3 4.6-5" />
+        <rect x="3.5" y="4.5" width="17" height="16" rx="2" />
+        <path strokeLinecap="round" d="M8 2.75v3.5M16 2.75v3.5M3.5 9h17" />
+        <path strokeLinecap="round" d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01" />
       </svg>
     ),
   },

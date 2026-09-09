@@ -173,14 +173,14 @@ export function EventDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(27,54,68,0.45)] sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(27,54,68,0.45)] p-0 max-lg:pt-[env(safe-area-inset-top,0px)] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[rgba(27,54,68,0.12)] bg-cream shadow-2xl sm:rounded-2xl"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[rgba(27,54,68,0.12)] bg-cream shadow-2xl max-lg:pb-[env(safe-area-inset-bottom,0px)] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-[rgba(27,54,68,0.12)] px-4 py-3.5 sm:px-5">
@@ -204,14 +204,16 @@ export function EventDetailModal({
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="flex-shrink-0 rounded-full border border-[rgba(27,54,68,0.12)] bg-white px-3 py-1.5 text-xs font-semibold text-navy hover:border-teal hover:text-teal"
+            className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full border border-[rgba(27,54,68,0.14)] bg-white text-navy shadow-sm hover:border-teal hover:text-teal max-lg:h-11 max-lg:w-11"
             aria-label="Close event details"
           >
-            Close
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden>
+              <path strokeLinecap="round" d="M7 7l10 10M17 7 7 17" />
+            </svg>
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {event.location && (
             <div>
               <p className="text-[10px] font-semibold tracking-wide text-navy/55">
@@ -325,18 +327,18 @@ export function DaySummaryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(27,54,68,0.45)] sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(27,54,68,0.45)] p-0 max-lg:pt-[env(safe-area-inset-top,0px)] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[rgba(27,54,68,0.12)] bg-cream shadow-2xl sm:rounded-2xl"
+        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[rgba(27,54,68,0.12)] bg-cream shadow-2xl max-lg:pb-[env(safe-area-inset-bottom,0px)] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-[rgba(27,54,68,0.12)] px-4 py-3.5 sm:px-5">
-          <div>
+          <div className="min-w-0">
             <h2
               id={titleId}
               className="font-serif text-lg font-bold tracking-tight text-navy sm:text-xl"
@@ -351,14 +353,16 @@ export function DaySummaryModal({
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="flex-shrink-0 rounded-full border border-[rgba(27,54,68,0.12)] bg-white px-3 py-1.5 text-xs font-semibold text-navy hover:border-teal hover:text-teal"
+            className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full border border-[rgba(27,54,68,0.14)] bg-white text-navy shadow-sm hover:border-teal hover:text-teal max-lg:h-11 max-lg:w-11"
             aria-label="Close day summary"
           >
-            Close
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden>
+              <path strokeLinecap="round" d="M7 7l10 10M17 7 7 17" />
+            </svg>
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {empty && (
             <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-3 py-4 text-sm text-navy/55">
               No domain events or triage for this day.

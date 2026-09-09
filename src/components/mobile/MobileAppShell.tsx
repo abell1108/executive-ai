@@ -8,7 +8,7 @@ import { canonicalizeDomainParam, domainDisplayName } from "@/lib/domain-label";
 import { DOMAINS } from "@/lib/seed-data";
 import { AgendaPanel } from "@/components/AgendaPanel";
 import { InboxPanel } from "@/components/InboxPanel";
-import { ApprovalsPanel } from "@/components/ApprovalsPanel";
+import { CalendarMonth } from "@/components/CalendarMonth";
 import { AskRoxy } from "@/components/AskRoxy";
 import { MobileTabBar, type MobileTab } from "./MobileTabBar";
 import { MobileHome } from "./MobileHome";
@@ -19,7 +19,7 @@ const TAB_IDS: MobileTab[] = [
   "home",
   "agenda",
   "inbox",
-  "approvals",
+  "calendar",
   "more",
 ];
 
@@ -34,8 +34,8 @@ function panelToTab(panel: string | null): {
 } {
   if (panel === "agenda") return { tab: "agenda" };
   if (panel === "inbox") return { tab: "inbox" };
-  if (panel === "approvals") return { tab: "approvals" };
-  if (panel === "calendar") return { tab: "more", more: "calendar" };
+  if (panel === "calendar") return { tab: "calendar" };
+  if (panel === "approvals") return { tab: "more", more: "approvals" };
   if (panel === "rest") return { tab: "more", more: "rest" };
   return { tab: "home" };
 }
@@ -46,10 +46,18 @@ function tabToPanel(
 ): string | null {
   if (tab === "agenda") return "agenda";
   if (tab === "inbox") return "inbox";
-  if (tab === "approvals") return "approvals";
-  if (tab === "more" && more === "calendar") return "calendar";
+  if (tab === "calendar") return "calendar";
+  if (tab === "more" && more === "approvals") return "approvals";
   if (tab === "more" && more === "rest") return "rest";
   return null;
+}
+
+/** Home-route ?tab= encoding for More subviews that are not primary tabs. */
+function tabQueryValue(tab: MobileTab, more: MoreSubview): string | null {
+  if (tab === "home") return null;
+  if (tab === "more" && more === "approvals") return "approvals";
+  if (tab === "more" && more === "rest") return "more";
+  return tab;
 }
 
 function parseDomain(raw: string | null): Domain {
@@ -70,16 +78,26 @@ export function MobileAppShell({
   const { status } = useSession();
   const onDesk = pathname.startsWith("/desk");
 
-  const tabFromQuery = parseTab(searchParams.get("tab"));
+  const rawTab = searchParams.get("tab");
+  const tabFromQuery = parseTab(rawTab);
   const panelParam = searchParams.get("panel");
   const domainParam = parseDomain(searchParams.get("domain"));
   const mapped = panelToTab(panelParam);
 
+  const initialFromApprovalsTab =
+    rawTab === "approvals"
+      ? ({ tab: "more" as MobileTab, more: "approvals" as MoreSubview })
+      : null;
+
   const [tab, setTab] = useState<MobileTab>(
-    tabFromQuery ?? (onDesk ? mapped.tab : null) ?? initialTab ?? "home",
+    tabFromQuery ??
+      initialFromApprovalsTab?.tab ??
+      (onDesk ? mapped.tab : null) ??
+      initialTab ??
+      "home",
   );
   const [moreSubview, setMoreSubview] = useState<MoreSubview>(
-    mapped.more ?? "menu",
+    initialFromApprovalsTab?.more ?? mapped.more ?? "menu",
   );
   const [domain, setDomain] = useState<Domain>(domainParam);
   const [domainsOpen, setDomainsOpen] = useState(false);
@@ -87,9 +105,16 @@ export function MobileAppShell({
   const [inboxBadge, setInboxBadge] = useState<number | null>(null);
 
   useEffect(() => {
-    const t = parseTab(searchParams.get("tab"));
+    const raw = searchParams.get("tab");
+    const t = parseTab(raw);
     if (t) {
       setTab(t);
+      if (t !== "more") setMoreSubview("menu");
+      return;
+    }
+    if (raw === "approvals") {
+      setTab("more");
+      setMoreSubview("approvals");
       return;
     }
     const panel = searchParams.get("panel");
@@ -139,8 +164,9 @@ export function MobileAppShell({
         else params.delete("panel");
       } else {
         params.delete("panel");
-        if (nextTab === "home") params.delete("tab");
-        else params.set("tab", nextTab);
+        const q = tabQueryValue(nextTab, nextMore);
+        if (q) params.set("tab", q);
+        else params.delete("tab");
       }
       if (nextDomain && nextDomain !== "All") params.set("domain", nextDomain);
       else params.delete("domain");
@@ -154,6 +180,15 @@ export function MobileAppShell({
   const onTabChange = (next: MobileTab) => {
     const nextMore = next === "more" ? moreSubview : "menu";
     if (next !== "more") setMoreSubview("menu");
+    setTab(next);
+    writeQuery(next, domain, nextMore);
+  };
+
+  const onNavigate = (next: MobileTab, opts?: { more?: MoreSubview }) => {
+    const nextMore =
+      opts?.more ?? (next === "more" ? moreSubview : "menu");
+    if (opts?.more) setMoreSubview(opts.more);
+    else if (next !== "more") setMoreSubview("menu");
     setTab(next);
     writeQuery(next, domain, nextMore);
   };
@@ -183,7 +218,7 @@ export function MobileAppShell({
   return (
     <div className="flex min-h-[100dvh] flex-col bg-cream text-navy lg:hidden">
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))]">
-        {tab === "home" ? <MobileHome onNavigate={onTabChange} /> : null}
+        {tab === "home" ? <MobileHome onNavigate={onNavigate} /> : null}
 
         {tab === "agenda" ? (
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
@@ -228,16 +263,15 @@ export function MobileAppShell({
           </div>
         ) : null}
 
-        {tab === "approvals" ? (
+        {tab === "calendar" ? (
           <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-2">
-            <h1 className="font-serif text-[24px] font-bold text-navy">
-              Approval Queue
+            <h1 className="mb-3 font-serif text-[24px] font-bold text-navy">
+              This Month&apos;s Calendar
             </h1>
-            <p className="mb-3 text-[13px] text-navy/55">
-              Nothing sends without your OK.
-            </p>
             {domainHint}
-            <ApprovalsPanel domain={domain} />
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <CalendarMonth domain={domain} />
+            </div>
           </div>
         ) : null}
 
