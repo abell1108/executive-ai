@@ -27,14 +27,14 @@ export function CommandCenter({ googleConfigured }: { googleConfigured: boolean 
       <ConnectGoogle configured={googleConfigured} />
       <CollisionBanner />
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden px-4 py-3 md:grid-cols-[minmax(0,68%)_minmax(240px,32%)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden px-3 py-3 sm:gap-0 sm:px-4 md:grid-cols-[minmax(0,68%)_minmax(240px,32%)]">
         <section
           className="flex min-h-0 flex-col overflow-hidden border-[rgba(27,54,68,0.12)] md:border-r md:pr-3.5"
           aria-label="This Week's Agenda"
         >
           <div className="mb-2.5 flex flex-shrink-0 flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-serif text-[22px] font-bold tracking-tight text-navy">
+              <h2 className="font-serif text-[20px] font-bold tracking-tight text-navy sm:text-[22px]">
                 This Week&apos;s Agenda
               </h2>
             </div>
@@ -80,7 +80,7 @@ export function CommandCenter({ googleConfigured }: { googleConfigured: boolean 
         </section>
 
         <aside
-          className="mt-6 flex min-h-0 flex-col gap-2 overflow-y-auto md:mt-0 md:pl-3"
+          className="mt-2 flex min-h-0 flex-col gap-3 overflow-y-auto sm:mt-6 sm:gap-2 md:mt-0 md:pl-3"
           aria-label="EA Operations"
         >
           <p className="flex-shrink-0 text-[10px] font-semibold tracking-wide text-navy/55">

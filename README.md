@@ -1,8 +1,10 @@
 # Alisa EA Command Center
 
 Next.js 15 + TypeScript + Tailwind. Operated by Roxy. Dual-pane B+C.
+Mobile-friendly Progressive Web App (installable standalone).
 
 Repo: https://github.com/abell1108/executive-ai.git
+Prod: https://executive-ai.vercel.app
 
 ## 1. Local
 
@@ -20,17 +22,28 @@ Push to abell1108/executive-ai on main when Alisa approves.
 
 ## 3. Vercel env vars
 
-Import the repo on Vercel. Configure the keys listed in the env example file:
-NEXTAUTH_URL, NEXTAUTH_SECRET, and the Google OAuth client id/secret pair.
+Import the repo on Vercel. Configure:
+
+- `NEXTAUTH_URL=https://executive-ai.vercel.app`
+- `NEXTAUTH_SECRET`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+
 Build does not require them; live Google sign-in does.
 
 ## 4. Google Cloud Console redirect URIs
 
 - http://localhost:3000/api/auth/callback/google
+- https://executive-ai.vercel.app/api/auth/callback/google
 - https://executive-ai-git-main-abell1108.vercel.app/api/auth/callback/google
-- https://YOUR-PRODUCTION-DOMAIN/api/auth/callback/google
 
 Enable Gmail API and Calendar API.
+
+## PWA
+
+- Manifest: /manifest.webmanifest (name Alisa EA Command Center, short EA Desk)
+- Service worker: /sw.js (offline shell + network-first navigation)
+- Icons: /icons/icon-192.png, /icons/icon-512.png
+- Theme #1B3644, background #F9F7F2
 
 ## Approval workflow (MVP)
 
@@ -44,11 +57,12 @@ Enable Gmail API and Calendar API.
 
 - Roxy-only Ask Roxy CTA
 - Left ~68 percent Agenda with Agenda or Calendar toggle (month bento pills and dots)
-- Right ~32 percent Inbox, Approvals Needs Alisa, Rest guards
-- Domain chips filter agenda, inbox, approvals
+- Right ~32 percent Inbox, Approvals Needs Alisa, Rest guards (stacks below agenda on mobile)
+- Domain chips filter agenda, inbox, approvals (horizontal scroll on small screens)
 - /settings lists hard rules (9-5, buffers, ALO 2nd Sat, approval gate, Sunday recap)
 - NextAuth Google provider only when credentials are set (no placeholder ids)
 - Gmail and Calendar API stubs
+- SessionProvider restored with refetchOnWindowFocus={false}
 
 ## Seed Sep 2026
 

@@ -10,15 +10,40 @@
   --alert-text: #B45309;
   --risk-bg: #FDECEA;
   --risk-text: #991B1B;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 html,
 body {
   min-height: 100%;
+  min-height: 100dvh;
+}
+
+html {
+  overflow-x: hidden;
 }
 
 body {
   background: var(--bg-cream);
   color: var(--navy);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  touch-action: manipulation;
+  padding-top: var(--safe-top);
+  padding-right: var(--safe-right);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+}
+
+/* Hide scrollbar on domain chip row (optional) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
