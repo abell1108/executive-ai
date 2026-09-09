@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import type { Domain } from "@/lib/types";
+import { TriageStatusPill } from "./TriageStatusPill";
 
 export type ModalCalEvent = {
   id: string;
@@ -88,7 +89,13 @@ function TriageRowButton({
   highlighted?: boolean;
   onSelect?: (item: ModalTriageItem) => void;
 }) {
-  const body = (
+  const shellClass = highlighted
+    ? "flex w-full items-start gap-2 rounded-lg border border-[#D97706] bg-[#FDE8C8] px-2 py-2"
+    : onSelect
+      ? "flex w-full items-start gap-2 rounded-lg border border-transparent px-1 py-1.5 hover:border-[rgba(217,119,6,0.35)] hover:bg-[#FFF8EE]"
+      : "flex w-full items-start gap-2 border-b border-[rgba(217,119,6,0.15)] pb-2 last:border-b-0 last:pb-0";
+
+  const main = (
     <>
       <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">
         {item.domain}
@@ -111,34 +118,26 @@ function TriageRowButton({
     </>
   );
 
-  if (!onSelect) {
-    return (
-      <div
-        className={
-          highlighted
-            ? "flex items-start gap-2 rounded-lg border border-[#D97706] bg-[#FDE8C8] px-2 py-2"
-            : "flex items-start gap-2 border-b border-[rgba(217,119,6,0.15)] pb-2 last:border-b-0 last:pb-0"
-        }
-      >
-        {body}
-      </div>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(item)}
-      className={
-        highlighted
-          ? "flex w-full items-start gap-2 rounded-lg border border-[#D97706] bg-[#FDE8C8] px-2 py-2 text-left hover:ring-1 hover:ring-[#D97706]/50"
-          : "flex w-full items-start gap-2 rounded-lg border border-transparent px-1 py-1.5 text-left hover:border-[rgba(217,119,6,0.35)] hover:bg-[#FFF8EE]"
-      }
-    >
-      {body}
-    </button>
+    <div className={shellClass}>
+      {onSelect ? (
+        <button
+          type="button"
+          onClick={() => onSelect(item)}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+        >
+          {main}
+        </button>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-start gap-2">{main}</div>
+      )}
+      <div className="mt-0.5 flex-shrink-0">
+        <TriageStatusPill messageId={item.id} size="sm" />
+      </div>
+    </div>
   );
 }
+
 
 export function EventDetailModal({
   open,

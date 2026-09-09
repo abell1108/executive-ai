@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { ModalTriageItem } from "./EventDetailModal";
+import { TriageStatusPill } from "./TriageStatusPill";
 
 type DetailResponse = {
   item?: ModalTriageItem;
@@ -143,6 +144,20 @@ export function TriageDetailModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+          <div>
+            <p className="text-[10px] font-semibold tracking-wide text-navy/55">
+              Review status
+            </p>
+            <div className="mt-1.5">
+              <TriageStatusPill messageId={item.id} size="md" />
+            </div>
+            {!item.id && (
+              <p className="mt-1 text-[10px] text-navy/45">
+                Status saves when a Gmail message id is available.
+              </p>
+            )}
+          </div>
+
           <div>
             <p className="text-[10px] font-semibold tracking-wide text-navy/55">
               Notes

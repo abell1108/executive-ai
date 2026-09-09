@@ -11,6 +11,15 @@ export type PillKind = "corp" | "tpfi" | "alo" | "rest";
 
 export type ApprovalStatus = "pending" | "approved" | "held";
 
+export type TriageReviewStatus =
+  | "not_started"
+  | "in_progress"
+  | "awaiting_action"
+  | "additional_action"
+  | "on_hold"
+  | "completed";
+
+
 export interface AgendaEvent {
   title: string;
   meta: string;
