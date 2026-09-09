@@ -49,8 +49,9 @@ export default function SettingsPage() {
           <strong className="font-semibold">Connect Google:</strong> when{" "}
           <code className="text-xs">GOOGLE_CLIENT_ID</code> /{" "}
           <code className="text-xs">GOOGLE_CLIENT_SECRET</code> are set in
-          Vercel, the home CTA enables Sign in with Google. Until then, Sep 2026
-          seed data powers the dual-pane UI.
+          Vercel, the home CTA enables Sign in with Google. Once signed in,
+          Inbox and Calendar show live domain-labeled items only (TPFI, DeeperRSC,
+          Myers, ALO, KB, SRF).
         </div>
       </main>
     </div>

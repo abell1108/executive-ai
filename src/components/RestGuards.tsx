@@ -5,22 +5,23 @@ export function RestGuards() {
         Rest / Burnout guards
       </h3>
       <p className="mb-1.5 text-[10px] text-navy/55">
-        Roxy auto-flags · no War Room
+        Generic domain tips · live flags when calendar stacks evenings
       </p>
       <div className="border-b border-[rgba(27,54,68,0.12)] py-2.5 text-[13px]">
-        <strong className="mb-0.5 block font-semibold text-alert-text">
-          Evening stack = HIGH COLLISION
+        <strong className="mb-0.5 block font-semibold text-navy">
+          Protect after-5 capacity
         </strong>
         <div className="text-xs text-navy/55">
-          Roxy automatically flags double-bookings and stacked evenings after 5.
+          Domain work after corporate hours — avoid stacking evenings when
+          multiple domain events land the same night.
         </div>
       </div>
       <div className="border-b border-[rgba(27,54,68,0.12)] py-2.5 text-[13px]">
         <strong className="mb-0.5 block font-semibold text-navy">
-          Next meeting buffer
+          Meeting buffers
         </strong>
         <div className="text-xs text-navy/55">
-          ALO Chapter · Sat Sep 12 · 11:00 AM ET · protect lead-up.
+          Leave lead-up and recovery time around high-stakes domain events.
         </div>
       </div>
       <div className="py-2.5 pb-0 text-[13px]">
@@ -28,7 +29,7 @@ export function RestGuards() {
           Recovery markers
         </strong>
         <div className="text-xs text-navy/55">
-          Wed Sep 9 marked Lighter after Summit days — burnout guard active.
+          After heavy domain days, keep a lighter block for recovery.
         </div>
       </div>
     </div>

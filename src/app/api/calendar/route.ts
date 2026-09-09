@@ -53,7 +53,7 @@ export async function GET() {
       return NextResponse.json({
         configured: false,
         authenticated: false,
-        source: "seed" as const,
+        source: "none" as const,
         message: "Connect Google to sync Calendar.",
         events: [],
       });
@@ -66,7 +66,7 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         authenticated: false,
-        source: "seed" as const,
+        source: "none" as const,
         message: "Sign in required.",
         events: [],
       });
@@ -78,7 +78,7 @@ export async function GET() {
       timeMax,
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "50",
+      maxResults: "80",
     });
 
     const res = await fetch(
@@ -93,7 +93,7 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         authenticated: false,
-        source: "seed" as const,
+        source: "none" as const,
         message: "Calendar token expired or insufficient scope — re-sign in.",
         events: [],
       });
@@ -103,20 +103,22 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         authenticated: true,
-        source: "seed" as const,
+        source: "live" as const,
         message: `Calendar list failed (${res.status}).`,
         events: [],
       });
     }
 
     const data = (await res.json()) as { items?: CalEvent[] };
-    const events = (data.items ?? []).map((ev) => {
+    const events = [];
+    for (const ev of data.items ?? []) {
       const title = ev.summary || "(no title)";
       const allDay = Boolean(ev.start?.date && !ev.start?.dateTime);
       const start = ev.start?.dateTime || ev.start?.date || "";
       const end = ev.end?.dateTime || ev.end?.date || "";
       const domain = inferDomain(`${title} ${ev.description ?? ""}`);
-      return {
+      if (!domain) continue;
+      events.push({
         id: ev.id,
         title,
         meta: formatEventMeta(ev, allDay),
@@ -124,8 +126,8 @@ export async function GET() {
         start,
         end,
         allDay,
-      };
-    });
+      });
+    }
 
     return NextResponse.json({
       configured: true,
@@ -137,7 +139,7 @@ export async function GET() {
     return NextResponse.json({
       configured: isGoogleConfigured(),
       authenticated: false,
-      source: "seed" as const,
+      source: "none" as const,
       message: "Calendar request failed.",
       events: [],
     });

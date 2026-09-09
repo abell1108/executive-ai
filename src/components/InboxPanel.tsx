@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { INBOX_ITEMS } from "@/lib/seed-data";
 import type { Domain, InboxItem } from "@/lib/types";
 
 type LiveInboxItem = InboxItem & { id?: string; from?: string; date?: string };
@@ -10,14 +9,15 @@ type LiveInboxItem = InboxItem & { id?: string; from?: string; date?: string };
 type GmailApiResponse = {
   configured?: boolean;
   authenticated?: boolean;
-  source?: "live" | "seed";
+  source?: "live" | "none";
   items?: LiveInboxItem[];
 };
 
 export function InboxPanel({ domain }: { domain: Domain }) {
   const { status } = useSession();
-  const [liveItems, setLiveItems] = useState<LiveInboxItem[] | null>(null);
-  const [source, setSource] = useState<"live" | "seed">("seed");
+  const [liveItems, setLiveItems] = useState<LiveInboxItem[]>([]);
+  const [source, setSource] = useState<"live" | "none" | "loading">("loading");
+  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,21 +27,19 @@ export function InboxPanel({ domain }: { domain: Domain }) {
         const res = await fetch("/api/gmail", { cache: "no-store" });
         const data = (await res.json()) as GmailApiResponse;
         if (cancelled) return;
-        if (
-          data.source === "live" &&
-          Array.isArray(data.items) &&
-          data.items.length > 0
-        ) {
-          setLiveItems(data.items);
+        setAuthenticated(Boolean(data.authenticated));
+        if (data.source === "live") {
+          setLiveItems(Array.isArray(data.items) ? data.items : []);
           setSource("live");
         } else {
-          setLiveItems(null);
-          setSource("seed");
+          setLiveItems([]);
+          setSource("none");
         }
       } catch {
         if (!cancelled) {
-          setLiveItems(null);
-          setSource("seed");
+          setLiveItems([]);
+          setSource("none");
+          setAuthenticated(false);
         }
       }
     }
@@ -52,13 +50,22 @@ export function InboxPanel({ domain }: { domain: Domain }) {
     };
   }, [status]);
 
-  const base: LiveInboxItem[] = liveItems ?? INBOX_ITEMS;
-
   const items = useMemo(
     () =>
-      domain === "All" ? base : base.filter((item) => item.domain === domain),
-    [domain, base],
+      domain === "All"
+        ? liveItems
+        : liveItems.filter((item) => item.domain === domain),
+    [domain, liveItems],
   );
+
+  const statusLabel =
+    source === "loading"
+      ? "Loading…"
+      : source === "live"
+        ? "Live · Domains"
+        : authenticated
+          ? "Live · Domains"
+          : "Sign in";
 
   return (
     <div className="relative min-h-0 flex-shrink overflow-hidden rounded-[14px] border border-[rgba(27,54,68,0.12)] bg-white px-3 py-2.5 shadow-sm">
@@ -72,13 +79,19 @@ export function InboxPanel({ domain }: { domain: Domain }) {
         Inbox triage
       </h3>
       <p className="mb-1.5 text-[10px] text-navy/55">
-        {source === "live" ? "Live · Gmail" : "Demo"}
+        {statusLabel}
         {" · "}
-        Roxy drafts · domain labels
+        domain labels only
         {domain !== "All" ? ` · ${domain}` : ""}
       </p>
       {items.length === 0 && (
-        <p className="py-2 text-xs text-navy/55">No inbox items for this domain.</p>
+        <p className="py-2 text-xs text-navy/55">
+          {source === "loading"
+            ? "Loading domain inbox…"
+            : source === "live" || authenticated
+              ? "No domain inbox items"
+              : "Sign in to load domain Gmail"}
+        </p>
       )}
       {items.map((item, i) => (
         <div

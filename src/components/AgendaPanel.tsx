@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import {
-  AGENDA_DAYS,
-  RULE_TAGS,
-  WEEK_SUB,
-  nextAloTargetIso,
-} from "@/lib/seed-data";
+import { RULE_TAGS, WEEK_SUB, nextAloTargetIso } from "@/lib/seed-data";
 import type { AgendaDay, AgendaEvent, Domain } from "@/lib/types";
 
 type LiveCalEvent = {
@@ -21,7 +16,8 @@ type LiveCalEvent = {
 };
 
 type CalendarApiResponse = {
-  source?: "live" | "seed";
+  source?: "live" | "none";
+  authenticated?: boolean;
   events?: LiveCalEvent[];
 };
 
@@ -73,7 +69,6 @@ function nyMonthDay(d: Date): string {
 /** Sunday–Saturday of the current week in America/New_York as date keys. */
 function currentWeekKeysET(now = new Date()): string[] {
   const todayKey = nyDateKey(now);
-  // Parse as local noon to avoid DST edge issues when stepping days
   const [y, m, day] = todayKey.split("-").map(Number);
   const noonUtcApprox = new Date(Date.UTC(y, m - 1, day, 16, 0, 0));
   const dowName = nyWeekdayShort(noonUtcApprox);
@@ -102,7 +97,7 @@ function weekSubtitle(weekKeys: string[]): string {
   const end = new Date(weekKeys[6] + "T16:00:00Z");
   const a = nyMonthDay(start);
   const b = nyMonthDay(end);
-  return `${a}–${b} · Mon–Fri 9–5 protected`;
+  return `${a}–${b} · Domains only`;
 }
 
 function groupLiveIntoDays(
@@ -116,9 +111,10 @@ function groupLiveIntoDays(
   for (const ev of events) {
     if (!ev.start) continue;
     const startDate = new Date(ev.start);
-    const key = ev.allDay && /^\d{4}-\d{2}-\d{2}$/.test(ev.start)
-      ? ev.start
-      : nyDateKey(startDate);
+    const key =
+      ev.allDay && /^\d{4}-\d{2}-\d{2}$/.test(ev.start)
+        ? ev.start
+        : nyDateKey(startDate);
     if (!byDay.has(key)) continue;
 
     const isAlo = ev.domain === "ALO";
@@ -131,30 +127,11 @@ function groupLiveIntoDays(
     });
   }
 
-  // Ensure weekday protected framing appears when a day has other events or is empty weekday
   const days: AgendaDay[] = [];
   for (const key of weekKeys) {
     const d = new Date(key + "T16:00:00Z");
     const dow = nyWeekdayShort(d);
-    const isWeekday = !["Sat", "Sun"].includes(dow);
-    let eventsForDay = byDay.get(key) ?? [];
-
-    if (isWeekday) {
-      const hasProtected = eventsForDay.some((e) =>
-        e.title.toLowerCase().includes("protected focus"),
-      );
-      if (!hasProtected) {
-        eventsForDay = [
-          {
-            title: "Protected focus block",
-            meta: "9–5 · Rules · role work only after 5",
-            domain: "Myers",
-          },
-          ...eventsForDay,
-        ];
-      }
-    }
-
+    const eventsForDay = byDay.get(key) ?? [];
     if (eventsForDay.length === 0) continue;
 
     const hasAlo = eventsForDay.some((e) => e.highlight === "alo");
@@ -171,10 +148,12 @@ function groupLiveIntoDays(
 
 export function AgendaPanel({ domain }: { domain: Domain }) {
   const { status } = useSession();
-  const [liveDays, setLiveDays] = useState<AgendaDay[] | null>(null);
+  const [liveDays, setLiveDays] = useState<AgendaDay[]>([]);
   const [weekSub, setWeekSub] = useState(WEEK_SUB);
-  const [source, setSource] = useState<"live" | "seed">("seed");
+  const [source, setSource] = useState<"live" | "none" | "loading">("loading");
+  const [authenticated, setAuthenticated] = useState(false);
   const [aloIso, setAloIso] = useState(nextAloTargetIso());
+  const [showCountdown, setShowCountdown] = useState(false);
   const countdown = useCountdown(aloIso);
 
   useEffect(() => {
@@ -189,20 +168,15 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
         const weekKeys = currentWeekKeysET();
         const todayKey = nyDateKey(new Date());
         setWeekSub(weekSubtitle(weekKeys));
+        setAuthenticated(Boolean(data.authenticated));
 
-        if (
-          data.source === "live" &&
-          Array.isArray(data.events) &&
-          data.events.length > 0
-        ) {
+        if (data.source === "live" && Array.isArray(data.events)) {
           const grouped = groupLiveIntoDays(data.events, weekKeys, todayKey);
           setLiveDays(grouped);
           setSource("live");
 
           const alo = data.events.find(
-            (e) =>
-              e.domain === "ALO" ||
-              /alo|chapter/i.test(e.title),
+            (e) => e.domain === "ALO" || /alo|chapter/i.test(e.title),
           );
           if (alo?.start) {
             setAloIso(
@@ -210,15 +184,21 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
                 ? `${alo.start}T15:00:00.000Z`
                 : new Date(alo.start).toISOString(),
             );
+            setShowCountdown(true);
+          } else {
+            setShowCountdown(false);
           }
         } else {
-          setLiveDays(null);
-          setSource("seed");
+          setLiveDays([]);
+          setSource("none");
+          setShowCountdown(false);
         }
       } catch {
         if (!cancelled) {
-          setLiveDays(null);
-          setSource("seed");
+          setLiveDays([]);
+          setSource("none");
+          setAuthenticated(false);
+          setShowCountdown(false);
         }
       }
     }
@@ -230,8 +210,7 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
   }, [status]);
 
   const days = useMemo(() => {
-    const base = liveDays ?? AGENDA_DAYS;
-    return base
+    return liveDays
       .map((day) => ({
         ...day,
         events:
@@ -242,16 +221,29 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
       .filter((day) => day.events.length > 0);
   }, [domain, liveDays]);
 
+  const statusLabel =
+    source === "loading"
+      ? "Loading…"
+      : source === "live"
+        ? "Live · Domains"
+        : authenticated
+          ? "Live · Domains"
+          : "Sign in";
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <p className="mb-2 text-xs text-navy/55">
-        {source === "live" ? "Live · Calendar" : "Demo"} · {weekSub}
+        {statusLabel} · {weekSub}
         {domain !== "All" ? ` · filter: ${domain}` : ""}
       </p>
       <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto">
         {days.length === 0 && (
           <p className="rounded-xl border border-dashed border-[rgba(27,54,68,0.2)] bg-white px-3 py-4 text-sm text-navy/55">
-            No agenda items for {domain} this week.
+            {source === "loading"
+              ? "Loading domain agenda…"
+              : source === "live" || authenticated
+                ? `No domain agenda items${domain !== "All" ? ` for ${domain}` : ""} this week.`
+                : "Sign in to load domain Calendar."}
           </p>
         )}
         {days.map((day) => (
@@ -263,7 +255,7 @@ export function AgendaPanel({ domain }: { domain: Domain }) {
                   Today
                 </span>
               )}
-              {day.countdown && (
+              {day.countdown && showCountdown && (
                 <span className="ml-auto rounded-full bg-alert-bg px-2 py-0.5 text-[10px] font-bold tracking-wide text-alert-text">
                   {countdown}
                 </span>

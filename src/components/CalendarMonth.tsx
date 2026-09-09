@@ -32,7 +32,8 @@ type LiveCalEvent = {
 };
 
 type CalendarApiResponse = {
-  source?: "live" | "seed";
+  source?: "live" | "none";
+  authenticated?: boolean;
   events?: LiveCalEvent[];
 };
 
@@ -72,10 +73,10 @@ function mergeLiveEvents(
     if (day == null) continue;
     const kind = domainToPillKind(ev.domain);
     const bucket = byDay.get(day) ?? { pills: [], dots: [] };
-    if (bucket.pills.length < 2) {
+    if (bucket.pills.length < 3) {
       bucket.pills.push({ label: shortLabel(ev.title), kind });
     }
-    if (bucket.dots.length < 4) {
+    if (bucket.dots.length < 5) {
       bucket.dots.push(kind);
     }
     byDay.set(day, bucket);
@@ -84,10 +85,8 @@ function mergeLiveEvents(
   return base.map((cell) => {
     if (cell.outOfMonth) return cell;
     const extra = byDay.get(cell.day);
-    if (!extra) return cell;
-    const pills = [...cell.pills, ...extra.pills].slice(0, 3);
-    const dots = [...cell.dots, ...extra.dots].slice(0, 5);
-    return { ...cell, pills, dots };
+    if (!extra) return { ...cell, pills: [], dots: [] };
+    return { ...cell, pills: extra.pills, dots: extra.dots };
   });
 }
 
@@ -97,8 +96,9 @@ export function CalendarMonth() {
   const [cursorDate, setCursorDate] = useState(
     () => new Date(now.getFullYear(), now.getMonth(), 1),
   );
-  const [liveEvents, setLiveEvents] = useState<LiveCalEvent[] | null>(null);
-  const [source, setSource] = useState<"live" | "seed">("seed");
+  const [liveEvents, setLiveEvents] = useState<LiveCalEvent[]>([]);
+  const [source, setSource] = useState<"live" | "none" | "loading">("loading");
+  const [authenticated, setAuthenticated] = useState(false);
 
   const year = cursorDate.getFullYear();
   const monthIndex = cursorDate.getMonth();
@@ -119,21 +119,19 @@ export function CalendarMonth() {
         const res = await fetch("/api/calendar", { cache: "no-store" });
         const data = (await res.json()) as CalendarApiResponse;
         if (cancelled) return;
-        if (
-          data.source === "live" &&
-          Array.isArray(data.events) &&
-          data.events.length > 0
-        ) {
+        setAuthenticated(Boolean(data.authenticated));
+        if (data.source === "live" && Array.isArray(data.events)) {
           setLiveEvents(data.events);
           setSource("live");
         } else {
-          setLiveEvents(null);
-          setSource("seed");
+          setLiveEvents([]);
+          setSource("none");
         }
       } catch {
         if (!cancelled) {
-          setLiveEvents(null);
-          setSource("seed");
+          setLiveEvents([]);
+          setSource("none");
+          setAuthenticated(false);
         }
       }
     }
@@ -145,11 +143,20 @@ export function CalendarMonth() {
 
   const cells = useMemo(() => {
     const base = buildMonthGrid(year, monthIndex);
-    if (liveEvents && liveEvents.length > 0) {
+    if (liveEvents.length > 0) {
       return mergeLiveEvents(base, liveEvents, year, monthIndex);
     }
     return base;
   }, [year, monthIndex, liveEvents]);
+
+  const statusLabel =
+    source === "loading"
+      ? "Loading…"
+      : source === "live"
+        ? "Live · Domains"
+        : authenticated
+          ? "Live · Domains"
+          : "Sign in";
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
@@ -159,8 +166,7 @@ export function CalendarMonth() {
             {cursorLabel}
           </h3>
           <p className="mt-0.5 text-[10px] text-navy/55">
-            {source === "live" ? "Live · Calendar" : "Demo"} · Month grid · dots
-            & event pills · America/New_York
+            {statusLabel} · Month grid · domain event pills · America/New_York
           </p>
         </div>
         <div className="inline-flex items-center gap-1.5" aria-label="Month navigation">
@@ -264,7 +270,7 @@ export function CalendarMonth() {
       </div>
 
       <p className="flex-shrink-0 pb-1 text-[10px] leading-snug text-navy/55 sm:text-[11px]">
-        Teal = TPFI · Navy = ALO · Muted = Corporate · Amber = Rest
+        Teal = TPFI / DeeperRSC / Myers / KB · Navy = ALO · Amber = SRF
       </p>
     </div>
   );

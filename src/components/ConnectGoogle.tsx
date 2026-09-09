@@ -18,10 +18,10 @@ export function ConnectGoogle({ configured }: { configured: boolean }) {
         </p>
         <p className="break-words text-xs text-navy/55">
           {!configured
-            ? "Missing Google env — seeded demo UI still available. Add GOOGLE_CLIENT_ID / SECRET + NEXTAUTH_SECRET in Vercel."
+            ? "Missing Google env — add GOOGLE_CLIENT_ID / SECRET + NEXTAUTH_SECRET to sync domain Gmail & Calendar."
             : signedIn
-              ? `Signed in as ${session?.user?.email ?? session?.user?.name ?? "you"} · Gmail & Calendar sync live.`
-              : "OAuth env detected — sign in to sync Gmail & Calendar."}
+              ? `Signed in as ${session?.user?.email ?? session?.user?.name ?? "you"} · Domain Gmail & Calendar live.`
+              : "OAuth env detected — sign in to load domain Gmail & Calendar."}
         </p>
       </div>
       {signedIn ? (

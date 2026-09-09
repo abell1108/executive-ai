@@ -38,7 +38,7 @@ export async function GET() {
       return NextResponse.json({
         configured: false,
         authenticated: false,
-        source: "seed" as const,
+        source: "none" as const,
         message: "Connect Google to sync Gmail.",
         items: [],
       });
@@ -51,15 +51,16 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         authenticated: false,
-        source: "seed" as const,
+        source: "none" as const,
         message: "Sign in required.",
         items: [],
       });
     }
 
+    // Broad fetch, then filter with inferDomain so labeled mail is not missed.
     const listRes = await fetch(
-      "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=12&q=" +
-        encodeURIComponent("in:inbox newer_than:14d"),
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=40&q=" +
+        encodeURIComponent("in:inbox newer_than:30d"),
       {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: "no-store",
@@ -70,7 +71,7 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         authenticated: false,
-        source: "seed" as const,
+        source: "none" as const,
         message: "Gmail token expired or insufficient scope — re-sign in.",
         items: [],
       });
@@ -80,16 +81,16 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         authenticated: true,
-        source: "seed" as const,
+        source: "live" as const,
         message: `Gmail list failed (${listRes.status}).`,
         items: [],
       });
     }
 
     const list = (await listRes.json()) as GmailListResponse;
-    const ids = (list.messages ?? []).map((m) => m.id).slice(0, 12);
+    const ids = (list.messages ?? []).map((m) => m.id).slice(0, 40);
 
-    const items = await Promise.all(
+    const fetched = await Promise.all(
       ids.map(async (id) => {
         const msgRes = await fetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
@@ -106,7 +107,8 @@ export async function GET() {
         const subject = header(headers, "Subject") || "(no subject)";
         const from = header(headers, "From");
         const date = header(headers, "Date");
-        const domain = inferDomain(`${subject} ${msg.snippet ?? ""}`);
+        const domain = inferDomain(`${subject} ${msg.snippet ?? ""} ${from}`);
+        if (!domain) return null;
         return {
           id: msg.id,
           domain,
@@ -118,17 +120,21 @@ export async function GET() {
       }),
     );
 
+    const items = fetched.filter(
+      (item): item is NonNullable<typeof item> => item != null,
+    );
+
     return NextResponse.json({
       configured: true,
       authenticated: true,
       source: "live" as const,
-      items: items.filter(Boolean),
+      items,
     });
   } catch {
     return NextResponse.json({
       configured: isGoogleConfigured(),
       authenticated: false,
-      source: "seed" as const,
+      source: "none" as const,
       message: "Gmail request failed.",
       items: [],
     });

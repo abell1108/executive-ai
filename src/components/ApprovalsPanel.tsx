@@ -1,15 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { APPROVALS } from "@/lib/seed-data";
-import type { ApprovalStatus, Domain } from "@/lib/types";
+import type { ApprovalItem, ApprovalStatus, Domain } from "@/lib/types";
 
-type LocalApproval = (typeof APPROVALS)[number] & { status: ApprovalStatus };
+type LocalApproval = ApprovalItem & { status: ApprovalStatus };
 
 export function ApprovalsPanel({ domain }: { domain: Domain }) {
-  const [items, setItems] = useState<LocalApproval[]>(() =>
-    APPROVALS.map((a) => ({ ...a, status: "pending" as ApprovalStatus })),
-  );
+  // No seed drafts — empty until real outbound drafts exist.
+  const [items, setItems] = useState<LocalApproval[]>([]);
 
   const visible = useMemo(
     () =>
@@ -38,7 +36,7 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
       </p>
       {visible.length === 0 && (
         <p className="py-2 text-xs text-[rgba(153,27,27,0.7)]">
-          No approvals for this domain.
+          No domain approvals queued
         </p>
       )}
       {visible.map((item) => (
