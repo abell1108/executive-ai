@@ -1,16 +1,63 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { INBOX_ITEMS } from "@/lib/seed-data";
-import type { Domain } from "@/lib/types";
+import type { Domain, InboxItem } from "@/lib/types";
+
+type LiveInboxItem = InboxItem & { id?: string; from?: string; date?: string };
+
+type GmailApiResponse = {
+  configured?: boolean;
+  authenticated?: boolean;
+  source?: "live" | "seed";
+  items?: LiveInboxItem[];
+};
 
 export function InboxPanel({ domain }: { domain: Domain }) {
+  const { status } = useSession();
+  const [liveItems, setLiveItems] = useState<LiveInboxItem[] | null>(null);
+  const [source, setSource] = useState<"live" | "seed">("seed");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const res = await fetch("/api/gmail", { cache: "no-store" });
+        const data = (await res.json()) as GmailApiResponse;
+        if (cancelled) return;
+        if (
+          data.source === "live" &&
+          Array.isArray(data.items) &&
+          data.items.length > 0
+        ) {
+          setLiveItems(data.items);
+          setSource("live");
+        } else {
+          setLiveItems(null);
+          setSource("seed");
+        }
+      } catch {
+        if (!cancelled) {
+          setLiveItems(null);
+          setSource("seed");
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
+  const base: LiveInboxItem[] = liveItems ?? INBOX_ITEMS;
+
   const items = useMemo(
     () =>
-      domain === "All"
-        ? INBOX_ITEMS
-        : INBOX_ITEMS.filter((item) => item.domain === domain),
-    [domain],
+      domain === "All" ? base : base.filter((item) => item.domain === domain),
+    [domain, base],
   );
 
   return (
@@ -25,15 +72,17 @@ export function InboxPanel({ domain }: { domain: Domain }) {
         Inbox triage
       </h3>
       <p className="mb-1.5 text-[10px] text-navy/55">
-        Roxy drafts · domain labels only
+        {source === "live" ? "Live · Gmail" : "Demo"}
+        {" · "}
+        Roxy drafts · domain labels
         {domain !== "All" ? ` · ${domain}` : ""}
       </p>
       {items.length === 0 && (
         <p className="py-2 text-xs text-navy/55">No inbox items for this domain.</p>
       )}
-      {items.map((item) => (
+      {items.map((item, i) => (
         <div
-          key={item.title}
+          key={item.id ?? `${item.title}-${i}`}
           className="flex items-start gap-2 border-b border-[rgba(27,54,68,0.12)] py-1.5 last:border-b-0 last:pb-0"
         >
           <span className="mt-0.5 flex-shrink-0 rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold text-teal">

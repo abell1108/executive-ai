@@ -12,3 +12,4 @@ coverage
 .env*.local
 *.pem
 
+.nextauth-secret.txt

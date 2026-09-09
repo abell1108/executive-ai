@@ -4,6 +4,7 @@ import type {
   CalendarDay,
   Domain,
   InboxItem,
+  PillKind,
 } from "./types";
 
 export const DOMAINS: Domain[] = [
@@ -16,15 +17,16 @@ export const DOMAINS: Domain[] = [
   "SRF",
 ];
 
-export const WEEK_SUB = "Sep 8–14 · Mon–Fri 9–5 protected";
+/** Soft demo week label — UI prefers live week range when signed in. */
+export const WEEK_SUB = "This week · Mon–Fri 9–5 protected";
 
 export const COLLISION_MESSAGE =
   "HIGH COLLISION · Burnout risk if evening stacked — protect after-5 capacity.";
 
 export const AGENDA_DAYS: AgendaDay[] = [
   {
-    label: "Tue Sep 8",
-    dateKey: "2026-09-08",
+    label: "Today",
+    dateKey: "seed-today",
     isToday: true,
     events: [
       {
@@ -33,15 +35,15 @@ export const AGENDA_DAYS: AgendaDay[] = [
         domain: "Myers",
       },
       {
-        title: "Global Africa Summit",
-        meta: "All day · Sep 8–10 · Charlotte · TPFI",
+        title: "Global Africa Summit (demo)",
+        meta: "All day · Charlotte · TPFI",
         domain: "TPFI",
       },
     ],
   },
   {
-    label: "Thu Sep 10",
-    dateKey: "2026-09-10",
+    label: "Thu",
+    dateKey: "seed-thu",
     events: [
       {
         title: "TPFI Thursday icebreaker",
@@ -51,8 +53,8 @@ export const AGENDA_DAYS: AgendaDay[] = [
     ],
   },
   {
-    label: "Sat Sep 12",
-    dateKey: "2026-09-12",
+    label: "Sat · 2nd Saturday",
+    dateKey: "seed-alo",
     countdown: true,
     events: [
       {
@@ -110,88 +112,95 @@ export const APPROVALS: ApprovalItem[] = [
   },
 ];
 
-/** September 2026 month grid — Sun start; short pills + dots only (no tall bars) */
-export function buildSeptember2026(): CalendarDay[] {
+/** Demo ALO target — next 2nd Saturday ~11 AM ET (approx). */
+export function nextAloTargetIso(from = new Date()): string {
+  const y = from.getFullYear();
+  const m = from.getMonth();
+  // 2nd Saturday of current month, or next month if past
+  const first = new Date(y, m, 1);
+  const firstSatOffset = (6 - first.getDay() + 7) % 7;
+  const secondSat = 1 + firstSatOffset + 7;
+  let target = new Date(y, m, secondSat, 11, 0, 0);
+  if (target.getTime() < from.getTime()) {
+    const nm = m + 1;
+    const firstN = new Date(y, nm, 1);
+    const off = (6 - firstN.getDay() + 7) % 7;
+    const d = 1 + off + 7;
+    target = new Date(y, nm, d, 11, 0, 0);
+  }
+  return target.toISOString();
+}
+
+/** @deprecated Prefer nextAloTargetIso() — kept for seed countdown fallback. */
+export const ALO_TARGET_ISO = nextAloTargetIso();
+
+export function domainToPillKind(domain: Domain | string): PillKind {
+  switch (domain) {
+    case "ALO":
+      return "alo";
+    case "SRF":
+      return "rest";
+    case "TPFI":
+    case "DeeperRSC":
+    case "Myers":
+    case "KB":
+      return "tpfi";
+    default:
+      return "tpfi";
+  }
+}
+
+/**
+ * Build a month grid (Sun-start, 6 weeks) for any year/month.
+ * Weekdays get a short 9–5 corp pill; no tall bars.
+ */
+export function buildMonthGrid(year: number, monthIndex: number): CalendarDay[] {
   const cells: CalendarDay[] = [];
-  // Aug 30, 31 (out)
-  cells.push({ day: 30, outOfMonth: true, pills: [], dots: [] });
-  cells.push({ day: 31, outOfMonth: true, pills: [], dots: [] });
+  const first = new Date(year, monthIndex, 1);
+  const startDow = first.getDay(); // 0=Sun
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const prevMonthDays = new Date(year, monthIndex, 0).getDate();
 
-  const corp = (
-    d: number,
-    extra: CalendarDay["pills"] = [],
-    extraDots: CalendarDay["dots"] = [],
-  ): CalendarDay => ({
-    day: d,
-    isToday: d === 8,
-    pills: [{ label: "9–5", kind: "corp" }, ...extra],
-    dots: ["corp", ...extraDots],
-  });
+  const today = new Date();
+  const isCurrentMonth =
+    today.getFullYear() === year && today.getMonth() === monthIndex;
+  const todayDate = today.getDate();
 
-  const weekend = (
-    d: number,
-    pills: CalendarDay["pills"] = [],
-    dots: CalendarDay["dots"] = [],
-  ): CalendarDay => ({
-    day: d,
-    pills,
-    dots,
-  });
-
-  // Sep 1–5
-  for (let d = 1; d <= 5; d++) {
-    if (d <= 4) cells.push(corp(d));
-    else cells.push(weekend(5));
+  for (let i = 0; i < startDow; i++) {
+    cells.push({
+      day: prevMonthDays - startDow + 1 + i,
+      outOfMonth: true,
+      pills: [],
+      dots: [],
+    });
   }
-  // 6–7
-  cells.push(weekend(6));
-  cells.push(corp(7));
-  // 8–12 week of focus
-  cells.push(corp(8, [{ label: "Summit", kind: "tpfi" }], ["tpfi"]));
-  cells.push(
-    corp(
-      9,
-      [
-        { label: "Summit", kind: "tpfi" },
-        { label: "Lighter", kind: "rest" },
-      ],
-      ["tpfi", "rest"],
-    ),
-  );
-  cells.push(
-    corp(
-      10,
-      [
-        { label: "Summit", kind: "tpfi" },
-        { label: "Icebreaker", kind: "tpfi" },
-      ],
-      ["tpfi", "tpfi"],
-    ),
-  );
-  cells.push(corp(11));
-  cells.push(
-    weekend(
-      12,
-      [
-        { label: "Breakfast", kind: "alo" },
-        { label: "Chapter", kind: "alo" },
-      ],
-      ["alo", "alo"],
-    ),
-  );
-  // 13–30
-  cells.push(weekend(13));
-  for (let d = 14; d <= 30; d++) {
-    const dow = new Date(Date.UTC(2026, 8, d)).getUTCDay(); // 0=Sun
-    if (dow === 0 || dow === 6) cells.push(weekend(d));
-    else cells.push(corp(d));
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, monthIndex, d).getDay();
+    const isWeekday = dow >= 1 && dow <= 5;
+    const isToday = isCurrentMonth && d === todayDate;
+    if (isWeekday) {
+      cells.push({
+        day: d,
+        isToday,
+        pills: [{ label: "9–5", kind: "corp" }],
+        dots: ["corp"],
+      });
+    } else {
+      cells.push({ day: d, isToday, pills: [], dots: [] });
+    }
   }
-  // Oct 1–3 out
-  cells.push({ day: 1, outOfMonth: true, pills: [], dots: [] });
-  cells.push({ day: 2, outOfMonth: true, pills: [], dots: [] });
-  cells.push({ day: 3, outOfMonth: true, pills: [], dots: [] });
+
+  let next = 1;
+  while (cells.length < 42) {
+    cells.push({ day: next++, outOfMonth: true, pills: [], dots: [] });
+  }
 
   return cells;
 }
 
-export const ALO_TARGET_ISO = "2026-09-12T15:00:00.000Z"; // 11:00 AM ET
+/** Legacy seed month — soft demo overlay for current calendar month. */
+export function buildSeptember2026(): CalendarDay[] {
+  const now = new Date();
+  return buildMonthGrid(now.getFullYear(), now.getMonth());
+}

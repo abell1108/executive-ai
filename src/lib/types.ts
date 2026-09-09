@@ -67,7 +67,7 @@ export const HARD_RULES = [
   {
     title: "ALO — 2nd Saturday",
     detail:
-      "ALO Chapter stands on the 2nd Saturday each month (e.g. Sep 12, 2026 · 11:00 AM ET).",
+      "ALO Chapter stands on the 2nd Saturday each month (e.g. 11:00 AM ET).",
   },
   {
     title: "Approval gate",

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { buildSeptember2026 } from "@/lib/seed-data";
-import type { PillKind } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { buildMonthGrid, domainToPillKind } from "@/lib/seed-data";
+import type { CalendarDay, CalendarPill, Domain, PillKind } from "@/lib/types";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -20,24 +21,154 @@ const dotClass: Record<PillKind, string> = {
   rest: "bg-[#D97706]",
 };
 
+type LiveCalEvent = {
+  id: string;
+  title: string;
+  meta: string;
+  domain: Domain;
+  start: string;
+  end: string;
+  allDay?: boolean;
+};
+
+type CalendarApiResponse = {
+  source?: "live" | "seed";
+  events?: LiveCalEvent[];
+};
+
+function shortLabel(title: string): string {
+  const t = title.trim();
+  if (t.length <= 12) return t;
+  return t.slice(0, 11) + "…";
+}
+
+function eventDayOfMonth(ev: LiveCalEvent, year: number, monthIndex: number): number | null {
+  let key: string;
+  if (ev.allDay && /^\d{4}-\d{2}-\d{2}$/.test(ev.start)) {
+    key = ev.start;
+  } else {
+    key = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(ev.start));
+  }
+  const [y, m, d] = key.split("-").map(Number);
+  if (y !== year || m !== monthIndex + 1) return null;
+  return d;
+}
+
+function mergeLiveEvents(
+  base: CalendarDay[],
+  events: LiveCalEvent[],
+  year: number,
+  monthIndex: number,
+): CalendarDay[] {
+  const byDay = new Map<number, { pills: CalendarPill[]; dots: PillKind[] }>();
+
+  for (const ev of events) {
+    const day = eventDayOfMonth(ev, year, monthIndex);
+    if (day == null) continue;
+    const kind = domainToPillKind(ev.domain);
+    const bucket = byDay.get(day) ?? { pills: [], dots: [] };
+    if (bucket.pills.length < 2) {
+      bucket.pills.push({ label: shortLabel(ev.title), kind });
+    }
+    if (bucket.dots.length < 4) {
+      bucket.dots.push(kind);
+    }
+    byDay.set(day, bucket);
+  }
+
+  return base.map((cell) => {
+    if (cell.outOfMonth) return cell;
+    const extra = byDay.get(cell.day);
+    if (!extra) return cell;
+    const pills = [...cell.pills, ...extra.pills].slice(0, 3);
+    const dots = [...cell.dots, ...extra.dots].slice(0, 5);
+    return { ...cell, pills, dots };
+  });
+}
+
 export function CalendarMonth() {
-  const cells = useMemo(() => buildSeptember2026(), []);
-  const [cursor] = useState("September 2026");
+  const { status } = useSession();
+  const now = useMemo(() => new Date(), []);
+  const [cursorDate, setCursorDate] = useState(
+    () => new Date(now.getFullYear(), now.getMonth(), 1),
+  );
+  const [liveEvents, setLiveEvents] = useState<LiveCalEvent[] | null>(null);
+  const [source, setSource] = useState<"live" | "seed">("seed");
+
+  const year = cursorDate.getFullYear();
+  const monthIndex = cursorDate.getMonth();
+
+  const cursorLabel = useMemo(
+    () =>
+      cursorDate.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      }),
+    [cursorDate],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/calendar", { cache: "no-store" });
+        const data = (await res.json()) as CalendarApiResponse;
+        if (cancelled) return;
+        if (
+          data.source === "live" &&
+          Array.isArray(data.events) &&
+          data.events.length > 0
+        ) {
+          setLiveEvents(data.events);
+          setSource("live");
+        } else {
+          setLiveEvents(null);
+          setSource("seed");
+        }
+      } catch {
+        if (!cancelled) {
+          setLiveEvents(null);
+          setSource("seed");
+        }
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
+  const cells = useMemo(() => {
+    const base = buildMonthGrid(year, monthIndex);
+    if (liveEvents && liveEvents.length > 0) {
+      return mergeLiveEvents(base, liveEvents, year, monthIndex);
+    }
+    return base;
+  }, [year, monthIndex, liveEvents]);
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
       <div className="flex flex-shrink-0 flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-serif text-base font-bold tracking-tight text-navy sm:text-lg">
-            {cursor}
+            {cursorLabel}
           </h3>
           <p className="mt-0.5 text-[10px] text-navy/55">
-            Month grid · dots & event pills · America/New_York
+            {source === "live" ? "Live · Calendar" : "Demo"} · Month grid · dots
+            & event pills · America/New_York
           </p>
         </div>
         <div className="inline-flex items-center gap-1.5" aria-label="Month navigation">
           <button
             type="button"
+            onClick={() =>
+              setCursorDate(new Date(year, monthIndex - 1, 1))
+            }
             className="rounded-[10px] border border-[rgba(27,54,68,0.12)] bg-white px-2.5 py-1.5 text-base font-medium text-navy shadow-sm hover:border-teal hover:text-teal"
             aria-label="Previous month"
           >
@@ -45,12 +176,18 @@ export function CalendarMonth() {
           </button>
           <button
             type="button"
+            onClick={() =>
+              setCursorDate(new Date(now.getFullYear(), now.getMonth(), 1))
+            }
             className="rounded-[10px] border border-[rgba(27,54,68,0.12)] bg-white px-3 py-1.5 text-xs font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
           >
             Today
           </button>
           <button
             type="button"
+            onClick={() =>
+              setCursorDate(new Date(year, monthIndex + 1, 1))
+            }
             className="rounded-[10px] border border-[rgba(27,54,68,0.12)] bg-white px-2.5 py-1.5 text-base font-medium text-navy shadow-sm hover:border-teal hover:text-teal"
             aria-label="Next month"
           >
@@ -74,7 +211,7 @@ export function CalendarMonth() {
         <div
           className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-[3px] overflow-hidden sm:gap-[5px]"
           role="grid"
-          aria-label={cursor}
+          aria-label={cursorLabel}
         >
           {cells.map((cell, i) => (
             <div
@@ -102,9 +239,9 @@ export function CalendarMonth() {
                   {cell.day}
                 </span>
               )}
-              {cell.pills.slice(0, 3).map((p) => (
+              {cell.pills.slice(0, 3).map((p, pi) => (
                 <span
-                  key={p.label + p.kind}
+                  key={`${p.label}-${p.kind}-${pi}`}
                   className={`block max-w-full flex-shrink-0 truncate rounded-full px-1 py-0.5 text-[7px] font-semibold leading-tight sm:px-1.5 sm:text-[8px] ${pillClass[p.kind]}`}
                 >
                   {p.label}
