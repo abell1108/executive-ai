@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isGoogleConfigured } from "@/lib/auth";
 import { inferDomain } from "@/lib/domain-label";
+import { isMeetingResponseEmail } from "@/lib/mail-filters";
 
 type GmailListResponse = {
   messages?: { id: string; threadId: string }[];
@@ -60,7 +61,9 @@ export async function GET() {
     // Broad fetch, then filter with inferDomain so labeled mail is not missed.
     const listRes = await fetch(
       "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=40&q=" +
-        encodeURIComponent("in:inbox newer_than:30d"),
+        encodeURIComponent(
+          'in:inbox newer_than:30d -subject:"Accepted:" -subject:"Declined:" -subject:"Tentative:" -subject:"Tentatively Accepted:" -subject:"Proposed new time:"',
+        ),
       {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: "no-store",
@@ -108,6 +111,7 @@ export async function GET() {
         const from = header(headers, "From");
         const date = header(headers, "Date");
         const snippet = (msg.snippet ?? "").trim();
+        if (isMeetingResponseEmail({ subject, from, snippet })) return null;
         const domain = inferDomain(`${subject} ${snippet} ${from}`);
         if (!domain) return null;
         return {

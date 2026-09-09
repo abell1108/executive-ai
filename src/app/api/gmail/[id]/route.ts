@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isGoogleConfigured } from "@/lib/auth";
 import { inferDomain } from "@/lib/domain-label";
+import { isMeetingResponseEmail } from "@/lib/mail-filters";
 import type { Domain } from "@/lib/types";
 
 const NOTES_MAX = 3500;
@@ -175,8 +176,15 @@ export async function GET(
     const from = header(headers, "From");
     const date = header(headers, "Date");
     const notes = extractNotes(msg);
+    const snippet = (msg.snippet ?? "").trim();
+    if (isMeetingResponseEmail({ subject, from, snippet })) {
+      return NextResponse.json(
+        { error: "Meeting response excluded from triage." },
+        { status: 404 },
+      );
+    }
     const domain =
-      inferDomain(`${subject} ${notes} ${from} ${msg.snippet ?? ""}`) ??
+      inferDomain(`${subject} ${notes} ${from} ${snippet}`) ??
       ("All" as Domain);
 
     return NextResponse.json({
