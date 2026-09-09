@@ -10,6 +10,7 @@ import { CollisionBanner } from "@/components/CollisionBanner";
 import { ReviewNotificationsBanner } from "@/components/ReviewNotificationsBanner";
 import type { MobileTab } from "./MobileTabBar";
 import type { MoreSubview } from "./MobileMore";
+import { useTriageRemovedMap } from "@/hooks/useTriageStatus";
 
 type GmailApiResponse = {
   source?: "live" | "none";
@@ -121,6 +122,7 @@ export function MobileHome({
   onNavigate: (tab: MobileTab, opts?: { more?: MoreSubview }) => void;
 }) {
   const { status } = useSession();
+  const removedMap = useTriageRemovedMap();
   const [inboxCount, setInboxCount] = useState<number | null>(null);
   const [meetingsToday, setMeetingsToday] = useState<number | null>(null);
   const [collisionDays, setCollisionDays] = useState(0);
@@ -141,7 +143,14 @@ export function MobileHome({
       const cal = (await calRes.json()) as CalendarApiResponse;
 
       if (gmail.source === "live" && Array.isArray(gmail.items)) {
-        setInboxCount(gmail.items.length);
+        const visible = gmail.items.filter((row) => {
+          const id =
+            row && typeof row === "object" && "id" in row
+              ? (row as { id?: unknown }).id
+              : undefined;
+          return typeof id !== "string" || !(id in removedMap);
+        });
+        setInboxCount(visible.length);
       } else {
         setInboxCount(null);
       }
@@ -211,7 +220,7 @@ export function MobileHome({
       setFocusSub(null);
       setUpcoming([]);
     }
-  }, []);
+  }, [removedMap]);
 
   useEffect(() => {
     void load();

@@ -5,12 +5,17 @@ import { useSession } from "next-auth/react";
 import type { Domain, InboxItem, TriageReviewStatus } from "@/lib/types";
 import {
   DEFAULT_TRIAGE_STATUS,
+  TRIAGE_STATUS_FILTER_ORDER,
   TRIAGE_STATUS_LABEL,
-  TRIAGE_STATUS_ORDER,
   TRIAGE_STATUS_PILL_CLASS,
 } from "@/lib/triage-status";
+import { applyTriageOverlay } from "@/lib/triage-overlay";
 import { domainDisplayName } from "@/lib/domain-label";
-import { useTriageStatusMap } from "@/hooks/useTriageStatus";
+import {
+  useTriageOverlayMap,
+  useTriageRemovedMap,
+  useTriageStatusMap,
+} from "@/hooks/useTriageStatus";
 import {
   formatUpdatedAt,
   useLiveRefresh,
@@ -43,6 +48,8 @@ export function InboxPanel({ domain }: { domain: Domain }) {
   const [selected, setSelected] = useState<ModalTriageItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const statusMap = useTriageStatusMap();
+  const removedMap = useTriageRemovedMap();
+  const overlayMap = useTriageOverlayMap();
 
   const load = useCallback(async () => {
     try {
@@ -73,13 +80,20 @@ export function InboxPanel({ domain }: { domain: Domain }) {
 
   const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 
-  const domainItems = useMemo(
-    () =>
+  const domainItems = useMemo(() => {
+    const scoped =
       domain === "All"
         ? liveItems
-        : liveItems.filter((item) => item.domain === domain),
-    [domain, liveItems],
-  );
+        : liveItems.filter((item) => item.domain === domain);
+    // Permanently removed ids never reappear after Gmail sync.
+    return scoped
+      .filter((item) => !item.id || !(item.id in removedMap))
+      .map((item) =>
+        item.id && item.id in overlayMap
+          ? applyTriageOverlay(item, overlayMap[item.id])
+          : item,
+      );
+  }, [domain, liveItems, removedMap, overlayMap]);
 
   const items = useMemo(() => {
     if (statusFilter === "all") return domainItems;
@@ -158,7 +172,7 @@ export function InboxPanel({ domain }: { domain: Domain }) {
         >
           All
         </button>
-        {TRIAGE_STATUS_ORDER.map((s) => (
+        {TRIAGE_STATUS_FILTER_ORDER.map((s) => (
           <button
             key={s}
             type="button"

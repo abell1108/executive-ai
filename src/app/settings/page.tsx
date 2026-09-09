@@ -14,7 +14,7 @@ export default function SettingsPage() {
         <div>
           <Link href="/" className="block no-underline">
             <h1 className="font-serif text-[22px] font-bold tracking-tight text-navy hover:text-teal">
-              Alisa EA Command Center
+              Alisa's Command Center
             </h1>
           </Link>
           <p className="mt-0.5 text-xs text-navy/55">

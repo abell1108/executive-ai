@@ -17,7 +17,8 @@ export type TriageReviewStatus =
   | "awaiting_action"
   | "additional_action"
   | "on_hold"
-  | "completed";
+  | "completed"
+  | "removed_from_list";
 
 
 export interface AgendaEvent {

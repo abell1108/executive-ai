@@ -1,4 +1,4 @@
-# Alisa EA Command Center
+# Alisa's Command Center
 
 Next.js 15 + TypeScript + Tailwind. Operated by Roxy. Dual-pane B+C.
 Mobile-friendly Progressive Web App (installable standalone).
@@ -49,7 +49,7 @@ Enable Gmail API and Calendar API.
 
 ## PWA
 
-- Manifest: /manifest.webmanifest (name Alisa EA Command Center, short EA Desk)
+- Manifest: /manifest.webmanifest (name Alisa's Command Center, short EA Desk)
 - Service worker: /sw.js (offline shell + network-first navigation)
 - Icons: /icons/icon-192.png, /icons/icon-512.png
 - Theme #1B3644, background #F9F7F2

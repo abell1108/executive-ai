@@ -14,6 +14,7 @@ import { MobileTabBar, type MobileTab } from "./MobileTabBar";
 import { MobileHome } from "./MobileHome";
 import { MobileMore, type MoreSubview } from "./MobileMore";
 import { DomainsSheet } from "./DomainsSheet";
+import { useTriageRemovedMap } from "@/hooks/useTriageStatus";
 
 const TAB_IDS: MobileTab[] = [
   "home",
@@ -103,6 +104,7 @@ export function MobileAppShell({
   const [domainsOpen, setDomainsOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [inboxBadge, setInboxBadge] = useState<number | null>(null);
+  const removedMap = useTriageRemovedMap();
 
   useEffect(() => {
     const raw = searchParams.get("tab");
@@ -140,7 +142,14 @@ export function MobileAppShell({
         };
         if (cancelled) return;
         if (data.source === "live" && Array.isArray(data.items)) {
-          setInboxBadge(data.items.length);
+          const visible = data.items.filter((row) => {
+            const id =
+              row && typeof row === "object" && "id" in row
+                ? (row as { id?: unknown }).id
+                : undefined;
+            return typeof id !== "string" || !(id in removedMap);
+          });
+          setInboxBadge(visible.length);
         } else {
           setInboxBadge(null);
         }
@@ -152,7 +161,7 @@ export function MobileAppShell({
     return () => {
       cancelled = true;
     };
-  }, [status, tab]);
+  }, [status, tab, removedMap]);
 
   const writeQuery = useCallback(
     (nextTab: MobileTab, nextDomain: Domain, nextMore: MoreSubview) => {

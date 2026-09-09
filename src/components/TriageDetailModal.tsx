@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { ModalTriageItem } from "./EventDetailModal";
 import { TriageStatusPill } from "./TriageStatusPill";
 import { domainDisplayName } from "@/lib/domain-label";
+import { useTriageOverlay, useTriageStatus } from "@/hooks/useTriageStatus";
+import { applyTriageOverlay } from "@/lib/triage-overlay";
 
 type DetailResponse = {
   item?: ModalTriageItem;
@@ -32,14 +34,33 @@ export function TriageDetailModal({
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [notes, setNotes] = useState<string | undefined>(undefined);
+  const [liveNotes, setLiveNotes] = useState<string | undefined>(undefined);
   const [loadingNotes, setLoadingNotes] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
+  const [draftDecision, setDraftDecision] = useState("");
+
+  const [overlay, setOverlay] = useTriageOverlay(item?.id);
+  const [status] = useTriageStatus(item?.id);
+
+  // Close when permanently removed from the list.
+  useEffect(() => {
+    if (!open || !item?.id) return;
+    if (status === "removed_from_list") {
+      onClose();
+    }
+  }, [open, item?.id, status, onClose]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.stopImmediatePropagation();
+      if (editing) {
+        setEditing(false);
+        return;
+      }
       onClose();
     };
     // Capture so Escape closes triage without also dismissing parent modals.
@@ -49,18 +70,20 @@ export function TriageDetailModal({
       window.removeEventListener("keydown", onKey, true);
       window.clearTimeout(t);
     };
-  }, [open, onClose]);
+  }, [open, onClose, editing]);
 
   useEffect(() => {
     if (!open || !item) {
-      setNotes(undefined);
+      setLiveNotes(undefined);
       setLoadingNotes(false);
+      setEditing(false);
       return;
     }
 
     let cancelled = false;
-    setNotes(item.notes);
+    setLiveNotes(item.notes);
     setLoadingNotes(Boolean(item.id));
+    setEditing(false);
 
     async function loadDetail() {
       if (!item?.id) {
@@ -79,7 +102,7 @@ export function TriageDetailModal({
         const data = (await res.json()) as DetailResponse;
         if (cancelled) return;
         const richer = data.item?.notes?.trim();
-        if (richer) setNotes(richer);
+        if (richer) setLiveNotes(richer);
       } catch {
         // Keep list snippet fallback.
       } finally {
@@ -95,11 +118,40 @@ export function TriageDetailModal({
 
   if (!open || !item) return null;
 
+  const baseForDisplay = {
+    ...item,
+    notes: liveNotes !== undefined ? liveNotes : item.notes,
+  };
+  const displayed = applyTriageOverlay(baseForDisplay, overlay);
+
   const sender = fromShort(item.from, item.meta);
   const dateLabel = item.date?.trim() || "";
   const metaLine = [sender, dateLabel].filter(Boolean).join(" · ");
   const openUrl = gmailOpenUrl(item.id);
-  const displayNotes = notes?.trim();
+  const displayNotes = displayed.notes?.trim();
+  const decisionText = displayed.decisionResponse?.trim();
+  const canEditFields = Boolean(item.id);
+
+  const startEdit = () => {
+    setDraftTitle(displayed.title);
+    setDraftNotes(displayed.notes ?? "");
+    setDraftDecision(displayed.decisionResponse ?? "");
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+  };
+
+  const saveEdit = () => {
+    if (!item.id) return;
+    setOverlay({
+      title: draftTitle.trim(),
+      notes: draftNotes,
+      decisionResponse: draftDecision,
+    });
+    setEditing(false);
+  };
 
   return (
     <div
@@ -114,7 +166,7 @@ export function TriageDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-[rgba(27,54,68,0.12)] px-4 py-3.5 sm:px-5">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-[rgba(45,106,108,0.12)] px-2.5 py-0.5 text-[10px] font-bold text-teal">
                 {domainDisplayName(item.domain)}
@@ -123,12 +175,25 @@ export function TriageDetailModal({
                 Inbox triage
               </span>
             </div>
-            <h2
-              id={titleId}
-              className="font-serif text-lg font-bold tracking-tight text-navy sm:text-xl"
-            >
-              {item.title}
-            </h2>
+            {editing ? (
+              <label className="block">
+                <span className="sr-only">Subject</span>
+                <input
+                  type="text"
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  className="w-full rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 font-serif text-lg font-bold tracking-tight text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 sm:text-xl"
+                  aria-label="Edit subject"
+                />
+              </label>
+            ) : (
+              <h2
+                id={titleId}
+                className="font-serif text-lg font-bold tracking-tight text-navy sm:text-xl"
+              >
+                {displayed.title}
+              </h2>
+            )}
             {metaLine && (
               <p className="mt-1 text-xs text-navy/55">{metaLine}</p>
             )}
@@ -156,16 +221,36 @@ export function TriageDetailModal({
             </div>
             {!item.id && (
               <p className="mt-1 text-[10px] text-navy/45">
-                Status saves when a Gmail message id is available.
+                Status and edits save when a Gmail message id is available.
               </p>
             )}
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold tracking-wide text-navy/55">
-              Notes
-            </p>
-            {loadingNotes && !displayNotes ? (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold tracking-wide text-navy/55">
+                Notes
+              </p>
+              {canEditFields && !editing && (
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  className="rounded-full border border-[rgba(27,54,68,0.14)] bg-white px-2.5 py-1 text-[10px] font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+            {editing ? (
+              <textarea
+                value={draftNotes}
+                onChange={(e) => setDraftNotes(e.target.value)}
+                rows={5}
+                className="mt-1.5 w-full resize-y rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm leading-relaxed text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
+                aria-label="Edit notes"
+                placeholder="Notes for this item…"
+              />
+            ) : loadingNotes && !displayNotes ? (
               <p className="mt-1 text-sm text-navy/55">Loading notes…</p>
             ) : displayNotes ? (
               <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-navy">
@@ -174,10 +259,55 @@ export function TriageDetailModal({
             ) : (
               <p className="mt-1 text-sm text-navy/55">No notes available</p>
             )}
-            {loadingNotes && displayNotes && (
+            {loadingNotes && displayNotes && !editing && (
               <p className="mt-1 text-[10px] text-navy/45">Refreshing notes…</p>
             )}
           </div>
+
+          <div>
+            <p className="text-[10px] font-semibold tracking-wide text-navy/55">
+              Your decision / response
+            </p>
+            {editing ? (
+              <textarea
+                value={draftDecision}
+                onChange={(e) => setDraftDecision(e.target.value)}
+                rows={3}
+                className="mt-1.5 w-full resize-y rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm leading-relaxed text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
+                aria-label="Edit decision or response"
+                placeholder="Decision, reply draft, or follow-up notes…"
+              />
+            ) : decisionText ? (
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-navy">
+                {decisionText}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-navy/55">
+                {canEditFields
+                  ? "No decision saved yet — tap Edit to add one."
+                  : "No decision saved"}
+              </p>
+            )}
+          </div>
+
+          {editing && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={saveEdit}
+                className="inline-flex items-center rounded-full bg-navy px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#152b36]"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="inline-flex items-center rounded-full border border-[rgba(27,54,68,0.14)] bg-white px-4 py-2 text-xs font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           {openUrl && (
             <a

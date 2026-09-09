@@ -9,6 +9,11 @@ import {
   useLiveRefresh,
 } from "@/hooks/useLiveRefresh";
 import {
+  useTriageOverlayMap,
+  useTriageRemovedMap,
+} from "@/hooks/useTriageStatus";
+import { applyTriageOverlay } from "@/lib/triage-overlay";
+import {
   DaySummaryModal,
   EventDetailModal,
   type ModalCalEvent,
@@ -177,6 +182,8 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     string | null
   >(null);
   const [triageDetail, setTriageDetail] = useState<LiveTriageItem | null>(null);
+  const removedMap = useTriageRemovedMap();
+  const overlayMap = useTriageOverlayMap();
 
   const year = cursorDate.getFullYear();
   const monthIndex = cursorDate.getMonth();
@@ -248,13 +255,19 @@ export function CalendarMonth({ domain = "All" }: { domain?: Domain }) {
     [domain, liveEvents],
   );
 
-  const filteredTriage = useMemo(
-    () =>
+  const filteredTriage = useMemo(() => {
+    const scoped =
       domain === "All"
         ? triageItems
-        : triageItems.filter((item) => item.domain === domain),
-    [domain, triageItems],
-  );
+        : triageItems.filter((item) => item.domain === domain);
+    return scoped
+      .filter((item) => !item.id || !(item.id in removedMap))
+      .map((item) =>
+        item.id && item.id in overlayMap
+          ? applyTriageOverlay(item, overlayMap[item.id])
+          : item,
+      );
+  }, [domain, triageItems, removedMap, overlayMap]);
 
   /** day → full LiveCalEvent[] for the visible month (domain-filtered). */
   const eventsByDay = useMemo(() => {

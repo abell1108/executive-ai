@@ -11,6 +11,7 @@ import {
 } from "@/hooks/useLiveRefresh";
 import { CollisionBanner } from "./CollisionBanner";
 import { ReviewNotificationsBanner } from "./ReviewNotificationsBanner";
+import { useTriageRemovedMap } from "@/hooks/useTriageStatus";
 
 const SNAP_DOMAINS: Exclude<Domain, "All">[] = [
   "TPFI",
@@ -180,6 +181,7 @@ const SIGN_IN_TIP = "Sign in via Settings to see live counts";
 
 export function HomeDashboard() {
   const { status } = useSession();
+  const removedMap = useTriageRemovedMap();
   const greeting = etGreeting();
   const dateLabel = etDateLabel();
   const monthShort = etMonthShort();
@@ -204,7 +206,14 @@ export function HomeDashboard() {
       const cal = (await calRes.json()) as CalendarApiResponse;
 
       if (gmail.source === "live" && Array.isArray(gmail.items)) {
-        setInboxCount(gmail.items.length);
+        const visible = gmail.items.filter((row) => {
+          const id =
+            row && typeof row === "object" && "id" in row
+              ? (row as { id?: unknown }).id
+              : undefined;
+          return typeof id !== "string" || !(id in removedMap);
+        });
+        setInboxCount(visible.length);
       } else {
         setInboxCount(null);
       }
@@ -264,7 +273,7 @@ export function HomeDashboard() {
       setTodayFocus(null);
       setAloSoon(false);
     }
-  }, []);
+  }, [removedMap]);
 
   useEffect(() => {
     void load();
@@ -352,12 +361,12 @@ export function HomeDashboard() {
           <Link
             href="/"
             className="flex min-w-0 items-center gap-2.5 no-underline"
-            aria-label="Alisa EA Command Center home"
+            aria-label="Alisa's Command Center home"
           >
             <HexLogo />
             <div className="min-w-0">
               <h1 className="font-serif text-[17px] font-bold tracking-tight text-navy sm:text-[20px]">
-                Alisa EA Command Center
+                Alisa's Command Center
               </h1>
             </div>
           </Link>
