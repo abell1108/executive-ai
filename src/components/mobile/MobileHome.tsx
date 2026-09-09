@@ -7,6 +7,7 @@ import {
   useLiveRefresh,
 } from "@/hooks/useLiveRefresh";
 import { CollisionBanner } from "@/components/CollisionBanner";
+import { ReviewNotificationsBanner } from "@/components/ReviewNotificationsBanner";
 import type { MobileTab } from "./MobileTabBar";
 import type { MoreSubview } from "./MobileMore";
 
@@ -308,6 +309,8 @@ export function MobileHome({
           </button>
         </div>
       </section>
+
+      <ReviewNotificationsBanner variant="mobile" />
 
       <section
         className="mb-3 grid grid-cols-3 gap-2 md:mb-4 md:gap-3"

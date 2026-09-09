@@ -10,6 +10,7 @@ import {
   useLiveRefresh,
 } from "@/hooks/useLiveRefresh";
 import { CollisionBanner } from "./CollisionBanner";
+import { ReviewNotificationsBanner } from "./ReviewNotificationsBanner";
 
 const SNAP_DOMAINS: Exclude<Domain, "All">[] = [
   "TPFI",
@@ -477,6 +478,8 @@ export function HomeDashboard() {
             </div>
           </div>
         </section>
+
+        <ReviewNotificationsBanner variant="desktop" />
 
         <section
           className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3"
