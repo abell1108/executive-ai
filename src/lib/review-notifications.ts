@@ -15,6 +15,8 @@ export type ReviewNotification = {
   sourceUrl: string;
   status: ReviewItemStatus;
   seededAt: string;
+  /** Optional longer body shown under the title (e.g. meeting notes briefing). */
+  summary?: string;
 };
 
 /** Stable empty snapshot for useSyncExternalStore. */
@@ -70,6 +72,32 @@ export const SEED_REVIEW_NOTIFICATIONS: ReviewNotification[] = [
   },
 ];
 
+/**
+ * Notifications merged into an already-seeded store when their id is missing.
+ * Does not resurrect items the user already dismissed or marked done (those
+ * remain in storage under the same id with a non-needs_review status).
+ */
+export const MERGED_REVIEW_NOTIFICATIONS: ReviewNotification[] = [
+  {
+    id: "drsc-8-10-meeting-notes",
+    title: "DRSC 8.10 meeting notes",
+    role: "DeeperRSC",
+    sourceTitle: "DRSC 8.10 meeting notes",
+    sourceUrl:
+      "https://docs.google.com/document/d/1-SAah328fUxU9ssubl2KP6YKWKugV7gHqrP6O172U4A/edit",
+    status: "needs_review",
+    seededAt: "2026-09-10",
+    summary:
+      "Doc asks you to see action items and add follow-ups to Command Center. Your items: (1) Review Aug 10 board next steps and add owed follow-ups; (2) Review nomination process docs in shared drive; (3) Brainstorm board candidates (gaps: marketing/pricing, younger demographics, racial/ethnic diversity, spiritual direction); (4) Rest Retreat Sept 8–9 already passed — only if attendance still needs closing. Most Zoom next steps are Elliott/Kim/Sonia.",
+  },
+];
+
+/** Full initial seed for empty stores (TPFI + merged migrations). */
+export const ALL_SEED_REVIEW_NOTIFICATIONS: ReviewNotification[] = [
+  ...SEED_REVIEW_NOTIFICATIONS,
+  ...MERGED_REVIEW_NOTIFICATIONS,
+];
+
 const VALID_STATUSES: ReviewItemStatus[] = [
   "needs_review",
   "done",
@@ -113,7 +141,7 @@ function parseList(raw: string): ReviewNotification[] {
     ) {
       continue;
     }
-    out.push({
+    const item: ReviewNotification = {
       id: r.id,
       title: r.title,
       role: r.role,
@@ -121,7 +149,11 @@ function parseList(raw: string): ReviewNotification[] {
       sourceUrl: r.sourceUrl,
       status: r.status,
       seededAt: r.seededAt,
-    });
+    };
+    if (typeof r.summary === "string" && r.summary) {
+      item.summary = r.summary;
+    }
+    out.push(item);
   }
   return out.length === 0 ? EMPTY_REVIEW_NOTIFICATIONS : out;
 }
@@ -141,7 +173,10 @@ function writeList(list: ReviewNotification[]): void {
   }
 }
 
-/** Seed Alisa TPFI Drive action items once when localStorage is empty. */
+/**
+ * Seed when localStorage is empty; otherwise merge any MERGED_REVIEW_NOTIFICATIONS
+ * whose ids are not already present (preserves dismissed/done).
+ */
 export function ensureReviewNotificationsSeeded(): void {
   if (typeof window === "undefined") return;
   if (seededThisSession) return;
@@ -149,11 +184,21 @@ export function ensureReviewNotificationsSeeded(): void {
     const existing = window.localStorage.getItem(
       REVIEW_NOTIFICATIONS_STORAGE_KEY,
     );
-    if (existing) {
+    if (!existing) {
+      writeList(ALL_SEED_REVIEW_NOTIFICATIONS.map((n) => ({ ...n })));
       seededThisSession = true;
       return;
     }
-    writeList(SEED_REVIEW_NOTIFICATIONS.map((n) => ({ ...n })));
+    const list = parseList(existing);
+    const ids = new Set(list.map((n) => n.id));
+    const toAdd = MERGED_REVIEW_NOTIFICATIONS.filter((n) => !ids.has(n.id));
+    if (toAdd.length > 0) {
+      writeList([...list, ...toAdd.map((n) => ({ ...n }))]);
+    } else {
+      // Warm cache for subsequent reads without rewriting storage.
+      cachedRaw = existing;
+      cachedList = list;
+    }
     seededThisSession = true;
   } catch {
     seededThisSession = true;

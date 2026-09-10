@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useActiveReviewNotifications } from "@/hooks/useReviewNotifications";
 import { domainDisplayName } from "@/lib/domain-label";
 
@@ -66,12 +66,37 @@ export function ReviewNotificationsBanner({ variant = "desktop" }: Props) {
     });
   }, []);
 
+  const roleLabels = useMemo(() => {
+    const seen = new Set<string>();
+    const labels: string[] = [];
+    for (const item of items) {
+      const label = domainDisplayName(item.role);
+      if (!seen.has(label)) {
+        seen.add(label);
+        labels.push(label);
+      }
+    }
+    return labels;
+  }, [items]);
+
+  const sharedSourceUrl = useMemo(() => {
+    if (items.length === 0) return undefined;
+    const first = items[0]?.sourceUrl;
+    if (!first) return undefined;
+    return items.every((i) => i.sourceUrl === first) ? first : undefined;
+  }, [items]);
+
+  const sharedSourceTitle = useMemo(() => {
+    if (items.length === 0) return undefined;
+    const first = items[0]?.sourceTitle;
+    if (!first) return undefined;
+    return items.every((i) => i.sourceTitle === first) ? first : undefined;
+  }, [items]);
+
   if (items.length === 0) return null;
 
   const expanded = !collapsed;
-  const sourceUrl = items[0]?.sourceUrl;
-  const sourceTitle = items[0]?.sourceTitle;
-  const roleLabel = domainDisplayName(items[0]?.role ?? "TPFI");
+  const roleLabelText = roleLabels.join(", ");
 
   if (variant === "mobile") {
     return (
@@ -98,8 +123,8 @@ export function ReviewNotificationsBanner({ variant = "desktop" }: Props) {
               </p>
               {!collapsed ? (
                 <p className="mt-0.5 text-[12px] text-navy/55 md:text-[13px]">
-                  {items.length} TPFI action item{items.length === 1 ? "" : "s"} ·{" "}
-                  Role: {roleLabel}
+                  {items.length} action item{items.length === 1 ? "" : "s"} ·{" "}
+                  Role{roleLabels.length === 1 ? "" : "s"}: {roleLabelText}
                 </p>
               ) : null}
             </div>
@@ -107,9 +132,9 @@ export function ReviewNotificationsBanner({ variant = "desktop" }: Props) {
               <Chevron expanded={expanded} />
             </span>
           </button>
-          {!collapsed && sourceUrl ? (
+          {!collapsed && sharedSourceUrl ? (
             <a
-              href={sourceUrl}
+              href={sharedSourceUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-shrink-0 rounded-full border border-teal/40 bg-[rgba(45,106,108,0.08)] px-2.5 py-1 text-[11px] font-semibold text-teal no-underline md:text-[12px]"
@@ -121,9 +146,9 @@ export function ReviewNotificationsBanner({ variant = "desktop" }: Props) {
 
         {expanded ? (
           <div id={panelId}>
-            {sourceTitle ? (
+            {sharedSourceTitle ? (
               <p className="mb-2 mt-2 truncate text-[11px] text-navy/45 md:text-[12px]">
-                From: {sourceTitle}
+                From: {sharedSourceTitle}
               </p>
             ) : (
               <div className="mt-2" />
@@ -134,9 +159,29 @@ export function ReviewNotificationsBanner({ variant = "desktop" }: Props) {
                   key={item.id}
                   className="rounded-xl border border-[rgba(27,54,68,0.1)] bg-cream/80 px-3 py-2.5 md:px-3.5 md:py-3"
                 >
-                  <p className="text-[13px] font-semibold leading-snug text-navy md:text-[14px]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal">
+                      {domainDisplayName(item.role)}
+                    </span>
+                    {!sharedSourceUrl && item.sourceUrl ? (
+                      <a
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-semibold text-teal no-underline"
+                      >
+                        Open Drive
+                      </a>
+                    ) : null}
+                  </div>
+                  <p className="mt-1.5 text-[13px] font-semibold leading-snug text-navy md:text-[14px]">
                     {item.title}
                   </p>
+                  {item.summary ? (
+                    <p className="mt-1.5 text-[12px] leading-snug text-navy/65 md:text-[13px]">
+                      {item.summary}
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -202,20 +247,21 @@ export function ReviewNotificationsBanner({ variant = "desktop" }: Props) {
               <>
                 <p className="mt-0.5 text-[12px] text-navy/60 sm:text-[13px]">
                   {items.length} action item{items.length === 1 ? "" : "s"} from
-                  Drive · Role: {roleLabel}
+                  Drive · Role{roleLabels.length === 1 ? "" : "s"}:{" "}
+                  {roleLabelText}
                 </p>
-                {sourceTitle ? (
+                {sharedSourceTitle ? (
                   <p className="mt-1 truncate text-[11px] text-navy/45 sm:text-[12px]">
-                    {sourceTitle}
+                    {sharedSourceTitle}
                   </p>
                 ) : null}
               </>
             ) : null}
           </div>
         </div>
-        {!collapsed && sourceUrl ? (
+        {!collapsed && sharedSourceUrl ? (
           <a
-            href={sourceUrl}
+            href={sharedSourceUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center rounded-full border border-teal/45 bg-white px-3 py-1.5 text-[12px] font-semibold text-teal no-underline shadow-sm hover:border-teal hover:bg-cream"
@@ -233,26 +279,50 @@ export function ReviewNotificationsBanner({ variant = "desktop" }: Props) {
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex flex-col gap-2 rounded-xl border border-[rgba(27,54,68,0.12)] bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4"
+              className="flex flex-col gap-2 rounded-xl border border-[rgba(27,54,68,0.12)] bg-white px-3 py-3 sm:gap-3 sm:px-4"
             >
-              <p className="min-w-0 text-[13px] font-semibold leading-snug text-navy sm:text-sm">
-                {item.title}
-              </p>
-              <div className="flex flex-shrink-0 flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => markDone(item.id)}
-                  className="rounded-full bg-teal px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#25585a] sm:text-[12px]"
-                >
-                  Mark done
-                </button>
-                <button
-                  type="button"
-                  onClick={() => dismiss(item.id)}
-                  className="rounded-full border border-[rgba(27,54,68,0.18)] bg-cream px-3 py-1.5 text-[11px] font-semibold text-navy/70 hover:border-navy/40 sm:text-[12px]"
-                >
-                  Dismiss
-                </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[rgba(45,106,108,0.12)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal">
+                  {domainDisplayName(item.role)}
+                </span>
+                {!sharedSourceUrl && item.sourceUrl ? (
+                  <a
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] font-semibold text-teal no-underline hover:underline"
+                  >
+                    Open Drive doc
+                  </a>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold leading-snug text-navy sm:text-sm">
+                    {item.title}
+                  </p>
+                  {item.summary ? (
+                    <p className="mt-1.5 text-[12px] leading-snug text-navy/65 sm:text-[13px]">
+                      {item.summary}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-shrink-0 flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => markDone(item.id)}
+                    className="rounded-full bg-teal px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#25585a] sm:text-[12px]"
+                  >
+                    Mark done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dismiss(item.id)}
+                    className="rounded-full border border-[rgba(27,54,68,0.18)] bg-cream px-3 py-1.5 text-[11px] font-semibold text-navy/70 hover:border-navy/40 sm:text-[12px]"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
             </li>
           ))}
