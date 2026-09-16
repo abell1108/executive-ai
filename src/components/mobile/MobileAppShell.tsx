@@ -225,7 +225,7 @@ export function MobileAppShell({
     ) : null;
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-cream text-navy lg:hidden">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-cream text-navy lg:hidden">
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))] md:max-w-2xl md:pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))]">
         {tab === "home" ? <MobileHome onNavigate={onNavigate} /> : null}
 

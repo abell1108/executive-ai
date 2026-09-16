@@ -23,14 +23,15 @@ body {
 }
 
 html {
-  overflow-x: hidden;
+  /* clip avoids Chrome wheel-scroll lock from overflow-x:hidden on html+body */
+  overflow-x: clip;
 }
 
 body {
   background: var(--bg-cream);
   color: var(--navy);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
   overscroll-behavior-y: contain;
   touch-action: manipulation;
   padding-top: var(--safe-top);

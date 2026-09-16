@@ -233,7 +233,7 @@ export function CommandCenter() {
     : undefined;
 
   return (
-    <div className="flex min-h-screen flex-col bg-cream text-navy">
+    <div className="flex h-dvh flex-col overflow-hidden bg-cream text-navy">
       <Header
         activeDomain={domain}
         onDomainChange={onDomainChange}
