@@ -11,6 +11,8 @@ export const APPROVAL_QUEUE_CHANGE_EVENT = "ea-approval-queue-change";
 export type StoredApprovalItem = ApprovalItem & {
   status: ApprovalStatus;
   body?: string;
+  to?: string;
+  subject?: string;
   from?: string;
   triageId?: string;
   updatedAt: string;
@@ -49,6 +51,12 @@ function isStatus(value: unknown): value is ApprovalStatus {
   return typeof value === "string" && (STATUSES as string[]).includes(value);
 }
 
+function optionalString(
+  value: unknown,
+): value is string | undefined {
+  return value === undefined || typeof value === "string";
+}
+
 function isStoredItem(value: unknown): value is StoredApprovalItem {
   if (!value || typeof value !== "object") return false;
   const o = value as Record<string, unknown>;
@@ -57,11 +65,19 @@ function isStoredItem(value: unknown): value is StoredApprovalItem {
   if (typeof o.meta !== "string") return false;
   if (!isDomain(o.domain) || o.domain === "All") return false;
   if (!isStatus(o.status)) return false;
-  if (o.body !== undefined && typeof o.body !== "string") return false;
-  if (o.from !== undefined && typeof o.from !== "string") return false;
-  if (o.triageId !== undefined && typeof o.triageId !== "string") return false;
+  if (!optionalString(o.body)) return false;
+  if (!optionalString(o.to)) return false;
+  if (!optionalString(o.subject)) return false;
+  if (!optionalString(o.from)) return false;
+  if (!optionalString(o.triageId)) return false;
   if (typeof o.updatedAt !== "string") return false;
   return true;
+}
+
+function pickOptionalString(
+  value: unknown,
+): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 function parseQueueMap(raw: string): ApprovalQueueMap {
@@ -70,15 +86,22 @@ function parseQueueMap(raw: string): ApprovalQueueMap {
   const out: ApprovalQueueMap = {};
   for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
     if (!id || !isStoredItem(value)) continue;
+    const body = pickOptionalString(value.body);
+    const to = pickOptionalString(value.to);
+    const subject = pickOptionalString(value.subject);
+    const from = pickOptionalString(value.from);
+    const triageId = pickOptionalString(value.triageId);
     out[id] = {
       id: value.id,
       title: value.title,
       meta: value.meta,
       domain: value.domain,
       status: value.status,
-      ...(typeof value.body === "string" ? { body: value.body } : {}),
-      ...(typeof value.from === "string" ? { from: value.from } : {}),
-      ...(typeof value.triageId === "string" ? { triageId: value.triageId } : {}),
+      ...(body !== undefined ? { body } : {}),
+      ...(to !== undefined ? { to } : {}),
+      ...(subject !== undefined ? { subject } : {}),
+      ...(from !== undefined ? { from } : {}),
+      ...(triageId !== undefined ? { triageId } : {}),
       updatedAt: value.updatedAt,
     };
   }
@@ -160,9 +183,23 @@ export type UpsertApprovalInput = {
   domain: Exclude<Domain, "All">;
   status?: ApprovalStatus;
   body?: string;
+  to?: string;
+  subject?: string;
   from?: string;
   triageId?: string;
 };
+
+function applyOptionalField(
+  next: StoredApprovalItem,
+  key: "body" | "to" | "subject" | "from" | "triageId",
+  incoming: string | undefined,
+  prev: string | undefined,
+): void {
+  const value = incoming !== undefined ? incoming : prev;
+  if (typeof value === "string" && (key === "triageId" ? Boolean(value) : value.trim() !== "")) {
+    next[key] = value;
+  }
+}
 
 export function upsertApprovalItem(input: UpsertApprovalInput): void {
   if (!input.id) return;
@@ -176,14 +213,45 @@ export function upsertApprovalItem(input: UpsertApprovalInput): void {
     status: input.status ?? prev?.status ?? "pending",
     updatedAt: new Date().toISOString(),
   };
-  const body = input.body !== undefined ? input.body : prev?.body;
-  if (typeof body === "string" && body.trim() !== "") next.body = body;
-  const from = input.from !== undefined ? input.from : prev?.from;
-  if (typeof from === "string" && from.trim() !== "") next.from = from;
-  const triageId =
-    input.triageId !== undefined ? input.triageId : prev?.triageId;
-  if (typeof triageId === "string" && triageId) next.triageId = triageId;
+  applyOptionalField(next, "body", input.body, prev?.body);
+  applyOptionalField(next, "to", input.to, prev?.to);
+  applyOptionalField(next, "subject", input.subject, prev?.subject);
+  applyOptionalField(next, "from", input.from, prev?.from);
+  applyOptionalField(next, "triageId", input.triageId, prev?.triageId);
   map[input.id] = next;
+  writeApprovalQueueMap(map);
+}
+
+/** Patch draft fields on an existing queue item (local edit in Approvals panel). */
+export function updateApprovalDraft(
+  id: string | undefined | null,
+  patch: { to?: string; subject?: string; body?: string; title?: string; meta?: string },
+): void {
+  if (!id) return;
+  const map = { ...readApprovalQueueMap() };
+  const prev = map[id];
+  if (!prev) return;
+  const subject =
+    patch.subject !== undefined ? patch.subject : prev.subject ?? prev.title;
+  const next: StoredApprovalItem = {
+    ...prev,
+    ...(patch.to !== undefined ? { to: patch.to } : {}),
+    ...(patch.subject !== undefined ? { subject: patch.subject } : {}),
+    ...(patch.body !== undefined ? { body: patch.body } : {}),
+    ...(patch.title !== undefined
+      ? { title: patch.title }
+      : patch.subject !== undefined
+        ? { title: patch.subject }
+        : {}),
+    ...(patch.meta !== undefined ? { meta: patch.meta } : {}),
+    updatedAt: new Date().toISOString(),
+  };
+  // Keep subject in sync with title display when subject was patched.
+  if (patch.subject !== undefined) {
+    next.subject = subject;
+    if (patch.title === undefined) next.title = subject;
+  }
+  map[id] = next;
   writeApprovalQueueMap(map);
 }
 
@@ -211,7 +279,7 @@ export function setApprovalStatus(
   writeApprovalQueueMap(map);
 }
 
-/** Count of items with status pending (optionally filtered by domain). */
+/** Count of items with status pending (optionally filtered by role). */
 export function countPendingApprovals(
   items: StoredApprovalItem[],
   domain?: Domain,

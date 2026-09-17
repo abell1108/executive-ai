@@ -10,6 +10,10 @@ import {
   approvalIdFromTriage,
   upsertApprovalItem,
 } from "@/lib/approval-queue";
+import {
+  parseSenderEmail,
+  proposeOutboundDraft,
+} from "@/lib/propose-outbound-draft";
 import type { Domain } from "@/lib/types";
 
 type DetailResponse = {
@@ -45,6 +49,9 @@ export function TriageDetailModal({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
   const [draftDecision, setDraftDecision] = useState("");
+  const [draftTo, setDraftTo] = useState("");
+  const [draftSubject, setDraftSubject] = useState("");
+  const [draftBody, setDraftBody] = useState("");
   const [queueConfirm, setQueueConfirm] = useState<string | null>(null);
 
   const [overlay, setOverlay] = useTriageOverlay(item?.id);
@@ -139,10 +146,40 @@ export function TriageDetailModal({
   const decisionText = displayed.decisionResponse?.trim();
   const canEditFields = Boolean(item.id);
 
+  const proposeDraftNow = () => {
+    const proposed = proposeOutboundDraft({
+      from: item.from,
+      subject: draftTitle.trim() || displayed.title,
+      notes: draftNotes || displayed.notes,
+      existingDecision: draftDecision.trim() || displayed.decisionResponse,
+    });
+    // Always refresh to/subject; replace body from template (or existing decision).
+    setDraftTo(proposed.to || parseSenderEmail(item.from));
+    setDraftSubject(proposed.subject);
+    setDraftBody(proposed.body);
+    if (!draftDecision.trim() && proposed.body) {
+      setDraftDecision(proposed.body);
+    }
+  };
+
   const startEdit = () => {
     setDraftTitle(displayed.title);
     setDraftNotes(displayed.notes ?? "");
     setDraftDecision(displayed.decisionResponse ?? "");
+    const proposed = proposeOutboundDraft({
+      from: item.from,
+      subject: displayed.title,
+      notes: displayed.notes,
+      existingDecision: displayed.decisionResponse,
+    });
+    setDraftTo(proposed.to || parseSenderEmail(item.from));
+    setDraftSubject(proposed.subject);
+    // Auto-propose body when empty.
+    const existingBody = displayed.decisionResponse?.trim() ?? "";
+    setDraftBody(existingBody || proposed.body);
+    if (!existingBody && proposed.body) {
+      setDraftDecision(proposed.body);
+    }
     setEditing(true);
   };
 
@@ -152,10 +189,11 @@ export function TriageDetailModal({
 
   const saveEdit = () => {
     if (!item.id) return;
+    const decision = draftBody.trim() || draftDecision.trim();
     setOverlay({
       title: draftTitle.trim(),
       notes: draftNotes,
-      decisionResponse: draftDecision,
+      decisionResponse: decision,
     });
     setEditing(false);
   };
@@ -166,17 +204,23 @@ export function TriageDetailModal({
     return `${one.slice(0, max - 1)}…`;
   };
 
-  const sendToApprovalQueue = (decision: string, titleOverride?: string) => {
+  const sendToApprovalQueue = (opts: {
+    to: string;
+    subject: string;
+    body: string;
+    titleOverride?: string;
+  }) => {
     if (!item.id) return;
-    const body = decision.trim();
+    const body = opts.body.trim();
     if (!body) return;
-    const subject = (titleOverride ?? displayed.title).trim() || item.title;
-    const replyTitle = subject.toLowerCase().startsWith("re:")
-      ? subject
-      : `Re: ${subject}`;
-    const sender = fromShort(item.from, item.meta);
+    const subject =
+      opts.subject.trim() ||
+      (opts.titleOverride ?? displayed.title).trim() ||
+      item.title;
+    const replyTitle = /^re:\s/i.test(subject) ? subject : `Re: ${subject}`;
+    const to = opts.to.trim() || parseSenderEmail(item.from);
     const metaParts = [
-      sender ? `To: ${sender}` : null,
+      to ? `To: ${to}` : sender ? `To: ${sender}` : null,
       previewSnippet(body),
     ].filter(Boolean);
     const domain =
@@ -188,6 +232,8 @@ export function TriageDetailModal({
       domain,
       status: "pending",
       body,
+      to: to || undefined,
+      subject: replyTitle,
       from: item.from || sender || undefined,
       triageId: item.id,
     });
@@ -197,19 +243,42 @@ export function TriageDetailModal({
 
   const saveAndQueue = () => {
     if (!item.id) return;
-    const body = draftDecision.trim();
+    const body = draftBody.trim() || draftDecision.trim();
     if (!body) return;
     setOverlay({
       title: draftTitle.trim(),
       notes: draftNotes,
-      decisionResponse: draftDecision,
+      decisionResponse: body,
     });
     setEditing(false);
-    sendToApprovalQueue(body, draftTitle.trim() || displayed.title);
+    sendToApprovalQueue({
+      to: draftTo,
+      subject: draftSubject || draftTitle,
+      body,
+      titleOverride: draftTitle.trim() || displayed.title,
+    });
   };
 
-  const canQueueSaved = Boolean(item.id) && Boolean(decisionText);
-  const canQueueDraft = Boolean(item.id) && draftDecision.trim().length > 0;
+  const queueFromSaved = () => {
+    const proposed = proposeOutboundDraft({
+      from: item.from,
+      subject: displayed.title,
+      notes: displayed.notes,
+      existingDecision: decisionText,
+    });
+    sendToApprovalQueue({
+      to: proposed.to || parseSenderEmail(item.from),
+      subject: proposed.subject,
+      body: proposed.body,
+    });
+  };
+
+  const canQueueSaved =
+    Boolean(item.id) &&
+    Boolean(decisionText || displayNotes || item.from || displayed.title);
+  const canQueueDraft =
+    Boolean(item.id) &&
+    (draftBody.trim().length > 0 || draftDecision.trim().length > 0);
 
   return (
     <div
@@ -235,13 +304,13 @@ export function TriageDetailModal({
             </div>
             {editing ? (
               <label className="block">
-                <span className="sr-only">Subject</span>
+                <span className="sr-only">Inbox subject</span>
                 <input
                   type="text"
                   value={draftTitle}
                   onChange={(e) => setDraftTitle(e.target.value)}
                   className="w-full rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 font-serif text-lg font-bold tracking-tight text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 sm:text-xl"
-                  aria-label="Edit subject"
+                  aria-label="Edit inbox subject"
                 />
               </label>
             ) : (
@@ -303,7 +372,7 @@ export function TriageDetailModal({
               <textarea
                 value={draftNotes}
                 onChange={(e) => setDraftNotes(e.target.value)}
-                rows={5}
+                rows={4}
                 className="mt-1.5 w-full resize-y rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm leading-relaxed text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
                 aria-label="Edit notes"
                 placeholder="Notes for this item…"
@@ -322,31 +391,81 @@ export function TriageDetailModal({
             )}
           </div>
 
-          <div>
-            <p className="text-[10px] font-semibold tracking-wide text-navy/55">
-              Your decision / response
-            </p>
-            {editing ? (
-              <textarea
-                value={draftDecision}
-                onChange={(e) => setDraftDecision(e.target.value)}
-                rows={3}
-                className="mt-1.5 w-full resize-y rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm leading-relaxed text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
-                aria-label="Edit decision or response"
-                placeholder="Decision, reply draft, or follow-up notes…"
-              />
-            ) : decisionText ? (
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-navy">
-                {decisionText}
+          {editing ? (
+            <div className="space-y-3 rounded-xl border border-[rgba(45,106,108,0.22)] bg-[rgba(45,106,108,0.06)] p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold tracking-wide text-teal">
+                  Proposed outbound draft
+                </p>
+                <button
+                  type="button"
+                  onClick={proposeDraftNow}
+                  className="rounded-full border border-teal/40 bg-white px-2.5 py-1 text-[10px] font-bold text-teal shadow-sm hover:border-teal"
+                >
+                  Propose draft
+                </button>
+              </div>
+              <label className="block">
+                <span className="text-[10px] font-semibold tracking-wide text-navy/55">
+                  To
+                </span>
+                <input
+                  type="email"
+                  value={draftTo}
+                  onChange={(e) => setDraftTo(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
+                  aria-label="Outbound To"
+                  placeholder="recipient@example.com"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-semibold tracking-wide text-navy/55">
+                  Subject
+                </span>
+                <input
+                  type="text"
+                  value={draftSubject}
+                  onChange={(e) => setDraftSubject(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
+                  aria-label="Outbound subject"
+                  placeholder="Re: …"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-semibold tracking-wide text-navy/55">
+                  Body
+                </span>
+                <textarea
+                  value={draftBody}
+                  onChange={(e) => {
+                    setDraftBody(e.target.value);
+                    setDraftDecision(e.target.value);
+                  }}
+                  rows={8}
+                  className="mt-1 w-full resize-y rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm leading-relaxed text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
+                  aria-label="Outbound body"
+                  placeholder="Warm professional reply…"
+                />
+              </label>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[10px] font-semibold tracking-wide text-navy/55">
+                Your decision / response
               </p>
-            ) : (
-              <p className="mt-1 text-sm text-navy/55">
-                {canEditFields
-                  ? "No decision saved yet — tap Edit to add one."
-                  : "No decision saved"}
-              </p>
-            )}
-          </div>
+              {decisionText ? (
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-navy">
+                  {decisionText}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-navy/55">
+                  {canEditFields
+                    ? "No draft yet — tap Edit to propose an outbound reply."
+                    : "No decision saved"}
+                </p>
+              )}
+            </div>
+          )}
 
           {editing && (
             <div className="flex flex-wrap gap-2">
@@ -379,7 +498,7 @@ export function TriageDetailModal({
             <div className="flex flex-col gap-1.5">
               <button
                 type="button"
-                onClick={() => sendToApprovalQueue(decisionText || "")}
+                onClick={queueFromSaved}
                 disabled={!canQueueSaved}
                 className="inline-flex w-fit items-center rounded-full border border-risk-text/40 bg-risk-bg px-4 py-2 text-xs font-bold text-risk-text shadow-sm hover:border-risk-text disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -389,11 +508,12 @@ export function TriageDetailModal({
                 <p className="text-[11px] font-semibold text-teal" role="status">
                   {queueConfirm}
                 </p>
-              ) : !canQueueSaved ? (
+              ) : (
                 <p className="text-[10px] text-navy/45">
-                  Save a decision / response first, then queue it for your OK.
+                  Queues the full outbound draft (To / Subject / Body) for your
+                  OK — Approve never auto-sends.
                 </p>
-              ) : null}
+              )}
             </div>
           )}
 

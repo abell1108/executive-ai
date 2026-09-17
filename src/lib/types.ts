@@ -53,8 +53,13 @@ export interface ApprovalItem {
   meta: string;
   domain: Domain;
   status?: ApprovalStatus;
-  /** Draft body (decision / reply text). */
+  /** Outbound draft body (reply text). */
   body?: string;
+  /** Outbound recipient email. */
+  to?: string;
+  /** Outbound subject line (often Re: …). */
+  subject?: string;
+  /** Original inbox sender (display / reference). */
   from?: string;
   triageId?: string;
   updatedAt?: string;
