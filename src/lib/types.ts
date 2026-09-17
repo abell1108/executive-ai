@@ -62,6 +62,8 @@ export interface ApprovalItem {
   /** Original inbox sender (display / reference). */
   from?: string;
   triageId?: string;
+  /** Excerpt of the Hey/Hi Roxy source email. */
+  requestExcerpt?: string;
   updatedAt?: string;
 }
 

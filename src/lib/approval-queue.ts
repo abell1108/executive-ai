@@ -15,6 +15,8 @@ export type StoredApprovalItem = ApprovalItem & {
   subject?: string;
   from?: string;
   triageId?: string;
+  /** Original Hey Roxy request excerpt for Approval Queue UI. */
+  requestExcerpt?: string;
   updatedAt: string;
 };
 
@@ -70,6 +72,7 @@ function isStoredItem(value: unknown): value is StoredApprovalItem {
   if (!optionalString(o.subject)) return false;
   if (!optionalString(o.from)) return false;
   if (!optionalString(o.triageId)) return false;
+  if (!optionalString(o.requestExcerpt)) return false;
   if (typeof o.updatedAt !== "string") return false;
   return true;
 }
@@ -91,6 +94,7 @@ function parseQueueMap(raw: string): ApprovalQueueMap {
     const subject = pickOptionalString(value.subject);
     const from = pickOptionalString(value.from);
     const triageId = pickOptionalString(value.triageId);
+    const requestExcerpt = pickOptionalString(value.requestExcerpt);
     out[id] = {
       id: value.id,
       title: value.title,
@@ -102,6 +106,7 @@ function parseQueueMap(raw: string): ApprovalQueueMap {
       ...(subject !== undefined ? { subject } : {}),
       ...(from !== undefined ? { from } : {}),
       ...(triageId !== undefined ? { triageId } : {}),
+      ...(requestExcerpt !== undefined ? { requestExcerpt } : {}),
       updatedAt: value.updatedAt,
     };
   }
@@ -187,11 +192,12 @@ export type UpsertApprovalInput = {
   subject?: string;
   from?: string;
   triageId?: string;
+  requestExcerpt?: string;
 };
 
 function applyOptionalField(
   next: StoredApprovalItem,
-  key: "body" | "to" | "subject" | "from" | "triageId",
+  key: "body" | "to" | "subject" | "from" | "triageId" | "requestExcerpt",
   incoming: string | undefined,
   prev: string | undefined,
 ): void {
@@ -218,6 +224,7 @@ export function upsertApprovalItem(input: UpsertApprovalInput): void {
   applyOptionalField(next, "subject", input.subject, prev?.subject);
   applyOptionalField(next, "from", input.from, prev?.from);
   applyOptionalField(next, "triageId", input.triageId, prev?.triageId);
+  applyOptionalField(next, "requestExcerpt", input.requestExcerpt, prev?.requestExcerpt);
   map[input.id] = next;
   writeApprovalQueueMap(map);
 }

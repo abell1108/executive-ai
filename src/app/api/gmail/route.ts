@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isGoogleConfigured } from "@/lib/auth";
 import { inferDomain } from "@/lib/domain-label";
 import { isMeetingResponseEmail } from "@/lib/mail-filters";
+import { isRoxyDraftRequest } from "@/lib/roxy-draft-trigger";
 
 type GmailListResponse = {
   messages?: { id: string; threadId: string }[];
@@ -96,7 +97,7 @@ export async function GET() {
     const fetched = await Promise.all(
       ids.map(async (id) => {
         const msgRes = await fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=To`,
           {
             headers: { Authorization: `Bearer ${accessToken}` },
             cache: "no-store",
@@ -109,10 +110,13 @@ export async function GET() {
         const headers = msg.payload?.headers;
         const subject = header(headers, "Subject") || "(no subject)";
         const from = header(headers, "From");
+        const to = header(headers, "To");
         const date = header(headers, "Date");
         const snippet = (msg.snippet ?? "").trim();
         if (isMeetingResponseEmail({ subject, from, snippet })) return null;
-        const domain = inferDomain(`${subject} ${snippet} ${from}`);
+        const haystack = `${subject} ${snippet} ${from} ${to}`;
+        const roxyAsk = isRoxyDraftRequest(haystack);
+        const domain = inferDomain(haystack) ?? (roxyAsk ? "TPFI" : null);
         if (!domain) return null;
         return {
           id: msg.id,

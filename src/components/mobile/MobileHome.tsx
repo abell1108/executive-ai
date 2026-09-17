@@ -12,6 +12,7 @@ import {
   getApprovalQueueSnapshot,
   subscribeApprovalQueue,
 } from "@/lib/approval-queue";
+import { syncRoxyDraftRequestsFromInbox } from "@/lib/roxy-draft-trigger";
 import { CollisionBanner } from "@/components/CollisionBanner";
 import { ReviewNotificationsBanner } from "@/components/ReviewNotificationsBanner";
 import type { MobileTab } from "./MobileTabBar";
@@ -149,6 +150,7 @@ export function MobileHome({
       const cal = (await calRes.json()) as CalendarApiResponse;
 
       if (gmail.source === "live" && Array.isArray(gmail.items)) {
+        syncRoxyDraftRequestsFromInbox(gmail.items);
         const visible = gmail.items.filter((row) => {
           const id =
             row && typeof row === "object" && "id" in row
@@ -233,7 +235,7 @@ export function MobileHome({
   }, [status, load]);
 
   const { lastRefreshedAt } = useLiveRefresh(load, {
-    intervalMs: 4 * 60 * 1000,
+    intervalMs: 75 * 1000,
   });
   const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 

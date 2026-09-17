@@ -15,6 +15,7 @@ import {
   getApprovalQueueSnapshot,
   subscribeApprovalQueue,
 } from "@/lib/approval-queue";
+import { syncRoxyDraftRequestsFromInbox } from "@/lib/roxy-draft-trigger";
 import { CollisionBanner } from "./CollisionBanner";
 import { ReviewNotificationsBanner } from "./ReviewNotificationsBanner";
 import { useTriageRemovedMap } from "@/hooks/useTriageStatus";
@@ -212,6 +213,7 @@ export function HomeDashboard() {
       const cal = (await calRes.json()) as CalendarApiResponse;
 
       if (gmail.source === "live" && Array.isArray(gmail.items)) {
+        syncRoxyDraftRequestsFromInbox(gmail.items);
         const visible = gmail.items.filter((row) => {
           const id =
             row && typeof row === "object" && "id" in row
@@ -286,7 +288,7 @@ export function HomeDashboard() {
   }, [status, load]);
 
   const { refresh, lastRefreshedAt, refreshing } = useLiveRefresh(load, {
-    intervalMs: 4 * 60 * 1000,
+    intervalMs: 75 * 1000,
   });
 
   const updatedLabel = formatUpdatedAt(lastRefreshedAt);
@@ -327,7 +329,7 @@ export function HomeDashboard() {
     inboxCount != null ? "Role emails · live" : "Sign in for live";
   const approvalSub =
     approvalCount > 0
-      ? `${approvalCount} draft${approvalCount === 1 ? "" : "s"} need your OK before send`
+      ? `${approvalCount} Roxy draft${approvalCount === 1 ? "" : "s"} need your OK`
       : "Nothing waiting — Roxy won't send without your OK";
 
   const agendaBadge = countBadgeProps(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { Domain, InboxItem, TriageReviewStatus } from "@/lib/types";
 import {
@@ -20,6 +20,7 @@ import {
   formatUpdatedAt,
   useLiveRefresh,
 } from "@/hooks/useLiveRefresh";
+import { syncRoxyDraftRequestsFromInbox } from "@/lib/roxy-draft-trigger";
 import { TriageDetailModal } from "./TriageDetailModal";
 import { TriageStatusPill } from "./TriageStatusPill";
 import type { ModalTriageItem } from "./EventDetailModal";
@@ -51,14 +52,21 @@ export function InboxPanel({ domain }: { domain: Domain }) {
   const removedMap = useTriageRemovedMap();
   const overlayMap = useTriageOverlayMap();
 
+  const loadInFlight = useRef(false);
+
   const load = useCallback(async () => {
+    if (loadInFlight.current) return;
+    loadInFlight.current = true;
     try {
       const res = await fetch("/api/gmail", { cache: "no-store" });
       const data = (await res.json()) as GmailApiResponse;
       setAuthenticated(Boolean(data.authenticated));
       if (data.source === "live") {
-        setLiveItems(Array.isArray(data.items) ? data.items : []);
+        const items = Array.isArray(data.items) ? data.items : [];
+        setLiveItems(items);
         setSource("live");
+        // Same-tick Roxy draft-request scan → Approval Queue (deduped by message id).
+        syncRoxyDraftRequestsFromInbox(items);
       } else {
         setLiveItems([]);
         setSource("none");
@@ -67,6 +75,8 @@ export function InboxPanel({ domain }: { domain: Domain }) {
       setLiveItems([]);
       setSource("none");
       setAuthenticated(false);
+    } finally {
+      loadInFlight.current = false;
     }
   }, []);
 
@@ -74,8 +84,9 @@ export function InboxPanel({ domain }: { domain: Domain }) {
     void load();
   }, [status, load]);
 
+  // Short poll while Command Center inbox is open; also focus/visibility via hook.
   const { refresh, lastRefreshedAt, refreshing } = useLiveRefresh(load, {
-    intervalMs: 4 * 60 * 1000,
+    intervalMs: 75 * 1000,
   });
 
   const updatedLabel = formatUpdatedAt(lastRefreshedAt);

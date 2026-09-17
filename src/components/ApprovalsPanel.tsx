@@ -72,6 +72,7 @@ function ApprovalQueueRow({ item }: { item: StoredApprovalItem }) {
     const nextSubject = subject.trim() || item.title;
     const nextBody = body;
     const metaParts = [
+      "Roxy draft request",
       nextTo ? `To: ${nextTo}` : null,
       nextBody.replace(/\s+/g, " ").trim().slice(0, 80) || null,
     ].filter(Boolean);
@@ -106,6 +107,12 @@ function ApprovalQueueRow({ item }: { item: StoredApprovalItem }) {
     window.location.href = mailto;
   };
 
+  const copyPlain = async () => {
+    const plain = (item.body ?? "").trim() || itemSubject(item);
+    const ok = await copyText(plain);
+    showFlash(ok ? "Copied" : "Copy failed");
+  };
+
   const copyDoc = async () => {
     const block = formatDraftForDoc({
       title: item.title,
@@ -129,6 +136,12 @@ function ApprovalQueueRow({ item }: { item: StoredApprovalItem }) {
     const ok = await copyText(tsv);
     showFlash(ok ? "Copied for Sheet" : "Copy failed");
   };
+
+  const excerpt =
+    item.requestExcerpt?.trim() ||
+    (item.meta?.includes("Roxy")
+      ? item.meta.replace(/^.*?From:[^·]*·\s*/, "").trim()
+      : "");
 
   return (
     <div className="border-b border-[rgba(153,27,27,0.12)] py-2 last:border-b-0 last:pb-0">
@@ -154,8 +167,18 @@ function ApprovalQueueRow({ item }: { item: StoredApprovalItem }) {
           </strong>
           <div className="mt-0.5 text-[10px] text-[rgba(153,27,27,0.7)]">
             {domainDisplayName(item.domain)}
-            {itemTo(item) ? ` · To: ${itemTo(item)}` : item.meta ? ` · ${item.meta}` : ""}
+            {itemTo(item) ? ` · To: ${itemTo(item)}` : ""}
+            {item.from
+              ? ` · From: ${item.from.replace(/<[^>]+>/, "").trim() || item.from}`
+              : ""}
           </div>
+
+          {excerpt ? (
+            <p className="mt-1.5 rounded-md border border-[rgba(153,27,27,0.12)] bg-[rgba(153,27,27,0.04)] px-2 py-1.5 text-[10px] leading-snug text-[rgba(153,27,27,0.8)]">
+              <span className="font-semibold">Original request: </span>
+              {excerpt}
+            </p>
+          ) : null}
 
           {editing ? (
             <div className="mt-2 space-y-2 rounded-md border border-[rgba(153,27,27,0.15)] bg-white/80 p-2">
@@ -222,6 +245,13 @@ function ApprovalQueueRow({ item }: { item: StoredApprovalItem }) {
             <div className="mt-2 flex flex-wrap gap-1.5">
               <button
                 type="button"
+                onClick={() => void copyPlain()}
+                className="rounded-full bg-navy px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#152b36]"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
                 onClick={beginEdit}
                 className="rounded-full border border-[rgba(153,27,27,0.3)] bg-white px-3 py-1.5 text-[11px] font-bold text-risk-text hover:border-teal hover:text-teal"
               >
@@ -256,7 +286,7 @@ function ApprovalQueueRow({ item }: { item: StoredApprovalItem }) {
               <button
                 type="button"
                 onClick={() => setStatus("approved")}
-                className="rounded-full bg-navy px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#152b36]"
+                className="rounded-full border border-[rgba(27,54,68,0.2)] bg-white px-3 py-1.5 text-[11px] font-bold text-navy hover:border-teal hover:text-teal"
               >
                 Approve
               </button>
@@ -284,7 +314,8 @@ function ApprovalQueueRow({ item }: { item: StoredApprovalItem }) {
             </p>
           ) : null}
           <p className="mt-1 text-[9px] leading-snug text-[rgba(153,27,27,0.55)]">
-            Approve = status only (does not send). Use Email draft for a mailto: compose window.
+            Approve / Hold = status only (does not send). Copy or Email draft for
+            next steps.
           </p>
         </div>
       </div>
@@ -318,19 +349,16 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
         </span>
       </h3>
       <p className="mb-2 text-[11px] leading-snug text-[rgba(153,27,27,0.85)]">
-        Outbound drafts land here first. Approve = you green-light (still does
-        not auto-send in MVP). Hold = pause. Nothing goes out without your OK.
+        Roxy draft requests land here automatically. Edit, Copy, then Approve or
+        Hold — nothing sends without your next step.
       </p>
       {visible.length === 0 && (
         <div className="rounded-lg border border-[rgba(153,27,27,0.15)] bg-white/70 px-3 py-3">
           <p className="text-xs font-semibold text-risk-text">
-            Queue clear — nothing waiting
+            No Roxy drafts waiting
           </p>
           <p className="mt-1 text-[11px] leading-snug text-[rgba(153,27,27,0.75)]">
-            When Roxy prepares outbound email replies, invites, or posts,
-            they&apos;ll show up here for your OK before anything is sent. From
-            Inbox triage, use Edit → Propose draft, then &ldquo;Send to Approval
-            Queue.&rdquo;
+            Emails that say Hi/Hey Roxy asking for a draft will appear here.
           </p>
         </div>
       )}

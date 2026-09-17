@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ModalTriageItem } from "./EventDetailModal";
 import { TriageStatusPill } from "./TriageStatusPill";
 import { domainDisplayName } from "@/lib/domain-label";
@@ -10,10 +10,11 @@ import {
   approvalIdFromTriage,
   upsertApprovalItem,
 } from "@/lib/approval-queue";
+import { parseSenderEmail } from "@/lib/propose-outbound-draft";
 import {
-  parseSenderEmail,
-  proposeOutboundDraft,
-} from "@/lib/propose-outbound-draft";
+  buildDraftFromRequest,
+  isRoxyDraftRequest,
+} from "@/lib/roxy-draft-trigger";
 import type { Domain } from "@/lib/types";
 
 type DetailResponse = {
@@ -49,15 +50,11 @@ export function TriageDetailModal({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
   const [draftDecision, setDraftDecision] = useState("");
-  const [draftTo, setDraftTo] = useState("");
-  const [draftSubject, setDraftSubject] = useState("");
-  const [draftBody, setDraftBody] = useState("");
   const [queueConfirm, setQueueConfirm] = useState<string | null>(null);
 
   const [overlay, setOverlay] = useTriageOverlay(item?.id);
   const [status] = useTriageStatus(item?.id);
 
-  // Close when permanently removed from the list.
   useEffect(() => {
     if (!open || !item?.id) return;
     if (status === "removed_from_list") {
@@ -76,7 +73,6 @@ export function TriageDetailModal({
       }
       onClose();
     };
-    // Capture so Escape closes triage without also dismissing parent modals.
     window.addEventListener("keydown", onKey, true);
     const t = window.setTimeout(() => closeRef.current?.focus(), 0);
     return () => {
@@ -130,6 +126,17 @@ export function TriageDetailModal({
     };
   }, [open, item]);
 
+  const triggerHaystack = useMemo(() => {
+    if (!item) return "";
+    const notes = liveNotes !== undefined ? liveNotes : item.notes;
+    return `${item.title ?? ""}\n${notes ?? ""}\n${item.from ?? ""}\n${item.meta ?? ""}`;
+  }, [item, liveNotes]);
+
+  const isRoxyAsk = useMemo(
+    () => isRoxyDraftRequest(triggerHaystack),
+    [triggerHaystack],
+  );
+
   if (!open || !item) return null;
 
   const baseForDisplay = {
@@ -146,40 +153,10 @@ export function TriageDetailModal({
   const decisionText = displayed.decisionResponse?.trim();
   const canEditFields = Boolean(item.id);
 
-  const proposeDraftNow = () => {
-    const proposed = proposeOutboundDraft({
-      from: item.from,
-      subject: draftTitle.trim() || displayed.title,
-      notes: draftNotes || displayed.notes,
-      existingDecision: draftDecision.trim() || displayed.decisionResponse,
-    });
-    // Always refresh to/subject; replace body from template (or existing decision).
-    setDraftTo(proposed.to || parseSenderEmail(item.from));
-    setDraftSubject(proposed.subject);
-    setDraftBody(proposed.body);
-    if (!draftDecision.trim() && proposed.body) {
-      setDraftDecision(proposed.body);
-    }
-  };
-
   const startEdit = () => {
     setDraftTitle(displayed.title);
     setDraftNotes(displayed.notes ?? "");
     setDraftDecision(displayed.decisionResponse ?? "");
-    const proposed = proposeOutboundDraft({
-      from: item.from,
-      subject: displayed.title,
-      notes: displayed.notes,
-      existingDecision: displayed.decisionResponse,
-    });
-    setDraftTo(proposed.to || parseSenderEmail(item.from));
-    setDraftSubject(proposed.subject);
-    // Auto-propose body when empty.
-    const existingBody = displayed.decisionResponse?.trim() ?? "";
-    setDraftBody(existingBody || proposed.body);
-    if (!existingBody && proposed.body) {
-      setDraftDecision(proposed.body);
-    }
     setEditing(true);
   };
 
@@ -189,96 +166,46 @@ export function TriageDetailModal({
 
   const saveEdit = () => {
     if (!item.id) return;
-    const decision = draftBody.trim() || draftDecision.trim();
     setOverlay({
       title: draftTitle.trim(),
       notes: draftNotes,
-      decisionResponse: decision,
+      decisionResponse: draftDecision.trim(),
     });
     setEditing(false);
   };
 
-  const previewSnippet = (text: string, max = 80): string => {
-    const one = text.replace(/\s+/g, " ").trim();
-    if (one.length <= max) return one;
-    return `${one.slice(0, max - 1)}…`;
-  };
-
-  const sendToApprovalQueue = (opts: {
-    to: string;
-    subject: string;
-    body: string;
-    titleOverride?: string;
-  }) => {
-    if (!item.id) return;
-    const body = opts.body.trim();
-    if (!body) return;
-    const subject =
-      opts.subject.trim() ||
-      (opts.titleOverride ?? displayed.title).trim() ||
-      item.title;
-    const replyTitle = /^re:\s/i.test(subject) ? subject : `Re: ${subject}`;
-    const to = opts.to.trim() || parseSenderEmail(item.from);
-    const metaParts = [
-      to ? `To: ${to}` : sender ? `To: ${sender}` : null,
-      previewSnippet(body),
-    ].filter(Boolean);
-    const domain =
-      item.domain !== "All" ? item.domain : ("TPFI" as Exclude<Domain, "All">);
-    upsertApprovalItem({
-      id: approvalIdFromTriage(item.id),
-      title: replyTitle,
-      meta: metaParts.join(" · "),
-      domain,
-      status: "pending",
-      body,
-      to: to || undefined,
-      subject: replyTitle,
-      from: item.from || sender || undefined,
-      triageId: item.id,
-    });
-    setQueueConfirm("Added to Approval Queue — Approve still does not send.");
-    window.setTimeout(() => setQueueConfirm(null), 3500);
-  };
-
-  const saveAndQueue = () => {
-    if (!item.id) return;
-    const body = draftBody.trim() || draftDecision.trim();
-    if (!body) return;
-    setOverlay({
-      title: draftTitle.trim(),
-      notes: draftNotes,
-      decisionResponse: body,
-    });
-    setEditing(false);
-    sendToApprovalQueue({
-      to: draftTo,
-      subject: draftSubject || draftTitle,
-      body,
-      titleOverride: draftTitle.trim() || displayed.title,
-    });
-  };
-
-  const queueFromSaved = () => {
-    const proposed = proposeOutboundDraft({
+  const queueRoxyDraft = () => {
+    if (!item.id || !isRoxyAsk) return;
+    const draft = buildDraftFromRequest({
       from: item.from,
       subject: displayed.title,
-      notes: displayed.notes,
-      existingDecision: decisionText,
+      body: displayNotes || displayed.notes,
     });
-    sendToApprovalQueue({
-      to: proposed.to || parseSenderEmail(item.from),
-      subject: proposed.subject,
-      body: proposed.body,
+    const domain =
+      item.domain !== "All" ? item.domain : ("TPFI" as Exclude<Domain, "All">);
+    const to = draft.to || parseSenderEmail(item.from);
+    upsertApprovalItem({
+      id: approvalIdFromTriage(item.id),
+      title: draft.subject,
+      meta: [
+        "Roxy draft request",
+        to ? `To: ${to}` : null,
+        draft.requestExcerpt || null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      domain,
+      status: "pending",
+      body: draft.body,
+      to: to || undefined,
+      subject: draft.subject,
+      from: item.from || sender || undefined,
+      triageId: item.id,
+      requestExcerpt: draft.requestExcerpt || undefined,
     });
+    setQueueConfirm("Queued for Approval Queue — Approve still does not send.");
+    window.setTimeout(() => setQueueConfirm(null), 3500);
   };
-
-  const canQueueSaved =
-    Boolean(item.id) &&
-    Boolean(decisionText || displayNotes || item.from || displayed.title);
-  const canQueueDraft =
-    Boolean(item.id) &&
-    (draftBody.trim().length > 0 || draftDecision.trim().length > 0);
 
   return (
     <div
@@ -301,6 +228,11 @@ export function TriageDetailModal({
               <span className="rounded-full border border-[#D97706]/40 bg-[#FFF8EE] px-2 py-0.5 text-[10px] font-semibold text-[#B45309]">
                 Inbox triage
               </span>
+              {isRoxyAsk && (
+                <span className="rounded-full border border-risk-text/25 bg-risk-bg px-2 py-0.5 text-[10px] font-semibold text-risk-text">
+                  Roxy draft request
+                </span>
+              )}
             </div>
             {editing ? (
               <label className="block">
@@ -392,61 +324,18 @@ export function TriageDetailModal({
           </div>
 
           {editing ? (
-            <div className="space-y-3 rounded-xl border border-[rgba(45,106,108,0.22)] bg-[rgba(45,106,108,0.06)] p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold tracking-wide text-teal">
-                  Proposed outbound draft
-                </p>
-                <button
-                  type="button"
-                  onClick={proposeDraftNow}
-                  className="rounded-full border border-teal/40 bg-white px-2.5 py-1 text-[10px] font-bold text-teal shadow-sm hover:border-teal"
-                >
-                  Propose draft
-                </button>
-              </div>
-              <label className="block">
-                <span className="text-[10px] font-semibold tracking-wide text-navy/55">
-                  To
-                </span>
-                <input
-                  type="email"
-                  value={draftTo}
-                  onChange={(e) => setDraftTo(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
-                  aria-label="Outbound To"
-                  placeholder="recipient@example.com"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[10px] font-semibold tracking-wide text-navy/55">
-                  Subject
-                </span>
-                <input
-                  type="text"
-                  value={draftSubject}
-                  onChange={(e) => setDraftSubject(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
-                  aria-label="Outbound subject"
-                  placeholder="Re: …"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[10px] font-semibold tracking-wide text-navy/55">
-                  Body
-                </span>
-                <textarea
-                  value={draftBody}
-                  onChange={(e) => {
-                    setDraftBody(e.target.value);
-                    setDraftDecision(e.target.value);
-                  }}
-                  rows={8}
-                  className="mt-1 w-full resize-y rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm leading-relaxed text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
-                  aria-label="Outbound body"
-                  placeholder="Warm professional reply…"
-                />
-              </label>
+            <div>
+              <p className="text-[10px] font-semibold tracking-wide text-navy/55">
+                Your notes / decision
+              </p>
+              <textarea
+                value={draftDecision}
+                onChange={(e) => setDraftDecision(e.target.value)}
+                rows={4}
+                className="mt-1.5 w-full resize-y rounded-xl border border-[rgba(27,54,68,0.18)] bg-white px-3 py-2 text-sm leading-relaxed text-navy shadow-sm focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
+                aria-label="Edit decision"
+                placeholder="Optional decision notes…"
+              />
             </div>
           ) : (
             <div>
@@ -460,7 +349,7 @@ export function TriageDetailModal({
               ) : (
                 <p className="mt-1 text-sm text-navy/55">
                   {canEditFields
-                    ? "No draft yet — tap Edit to propose an outbound reply."
+                    ? "No decision notes yet — tap Edit to add."
                     : "No decision saved"}
                 </p>
               )}
@@ -478,14 +367,6 @@ export function TriageDetailModal({
               </button>
               <button
                 type="button"
-                onClick={saveAndQueue}
-                disabled={!canQueueDraft}
-                className="inline-flex items-center rounded-full border border-risk-text/40 bg-risk-bg px-4 py-2 text-xs font-bold text-risk-text shadow-sm hover:border-risk-text disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Save &amp; send to Approval Queue
-              </button>
-              <button
-                type="button"
                 onClick={cancelEdit}
                 className="inline-flex items-center rounded-full border border-[rgba(27,54,68,0.14)] bg-white px-4 py-2 text-xs font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
               >
@@ -494,34 +375,31 @@ export function TriageDetailModal({
             </div>
           )}
 
-          {!editing && canEditFields && (
-            <div className="flex flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={queueFromSaved}
-                disabled={!canQueueSaved}
-                className="inline-flex w-fit items-center rounded-full border border-risk-text/40 bg-risk-bg px-4 py-2 text-xs font-bold text-risk-text shadow-sm hover:border-risk-text disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Send to Approval Queue
-              </button>
+          {!editing && (
+            <div className="rounded-xl border border-[rgba(153,27,27,0.18)] bg-risk-bg/60 px-3 py-2.5">
+              <p className="text-[11px] font-semibold text-risk-text">
+                Roxy draft requests auto-queue
+              </p>
+              <p className="mt-0.5 text-[10px] leading-snug text-[rgba(153,27,27,0.75)]">
+                Emails that say Hi/Hey Roxy asking for a draft appear in Approval
+                Queue on inbox refresh — Approve never auto-sends.
+              </p>
+              {isRoxyAsk && canEditFields && (
+                <button
+                  type="button"
+                  onClick={queueRoxyDraft}
+                  className="mt-2 inline-flex items-center rounded-full border border-risk-text/40 bg-white px-3.5 py-1.5 text-[11px] font-bold text-risk-text shadow-sm hover:border-risk-text"
+                >
+                  Queue Roxy draft
+                </button>
+              )}
               {queueConfirm ? (
-                <p className="text-[11px] font-semibold text-teal" role="status">
+                <p className="mt-1.5 text-[11px] font-semibold text-teal" role="status">
                   {queueConfirm}
                 </p>
-              ) : (
-                <p className="text-[10px] text-navy/45">
-                  Queues the full outbound draft (To / Subject / Body) for your
-                  OK — Approve never auto-sends.
-                </p>
-              )}
+              ) : null}
             </div>
           )}
-
-          {editing && queueConfirm ? (
-            <p className="text-[11px] font-semibold text-teal" role="status">
-              {queueConfirm}
-            </p>
-          ) : null}
 
           {openUrl && (
             <a
