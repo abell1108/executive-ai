@@ -1,11 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSession } from "next-auth/react";
 import {
   formatUpdatedAt,
   useLiveRefresh,
 } from "@/hooks/useLiveRefresh";
+import {
+  countPendingApprovals,
+  getApprovalQueueServerSnapshot,
+  getApprovalQueueSnapshot,
+  subscribeApprovalQueue,
+} from "@/lib/approval-queue";
 import { CollisionBanner } from "@/components/CollisionBanner";
 import { ReviewNotificationsBanner } from "@/components/ReviewNotificationsBanner";
 import type { MobileTab } from "./MobileTabBar";
@@ -231,7 +237,12 @@ export function MobileHome({
   });
   const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 
-  const approvalCount = 0;
+  const approvalItems = useSyncExternalStore(
+    subscribeApprovalQueue,
+    getApprovalQueueSnapshot,
+    getApprovalQueueServerSnapshot,
+  );
+  const approvalCount = countPendingApprovals(approvalItems);
   const progressPct = useMemo(() => {
     if (!focusTitle) return 0;
     if (/alo/i.test(focusTitle)) return 60;

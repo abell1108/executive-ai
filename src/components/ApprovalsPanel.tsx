@@ -1,14 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ApprovalItem, ApprovalStatus, Domain } from "@/lib/types";
+import { useMemo, useSyncExternalStore } from "react";
+import type { ApprovalStatus, Domain } from "@/lib/types";
 import { domainDisplayName } from "@/lib/domain-label";
-
-type LocalApproval = ApprovalItem & { status: ApprovalStatus };
+import {
+  countPendingApprovals,
+  getApprovalQueueServerSnapshot,
+  getApprovalQueueSnapshot,
+  setApprovalStatus,
+  subscribeApprovalQueue,
+} from "@/lib/approval-queue";
 
 export function ApprovalsPanel({ domain }: { domain: Domain }) {
-  // No seed drafts — empty until real outbound drafts exist.
-  const [items, setItems] = useState<LocalApproval[]>([]);
+  const items = useSyncExternalStore(
+    subscribeApprovalQueue,
+    getApprovalQueueSnapshot,
+    getApprovalQueueServerSnapshot,
+  );
 
   const visible = useMemo(
     () =>
@@ -16,12 +24,10 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
     [domain, items],
   );
 
-  const pendingCount = visible.filter((i) => i.status === "pending").length;
+  const pendingCount = countPendingApprovals(visible);
 
   const setStatus = (id: string, status: ApprovalStatus) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status } : item)),
-    );
+    setApprovalStatus(id, status);
   };
 
   return (
@@ -45,7 +51,9 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
           </p>
           <p className="mt-1 text-[11px] leading-snug text-[rgba(153,27,27,0.75)]">
             When Roxy prepares outbound email replies, invites, or posts,
-            they&apos;ll show up here for your OK before anything is sent.
+            they&apos;ll show up here for your OK before anything is sent. From
+            Inbox triage, use &ldquo;Send to Approval Queue&rdquo; after writing
+            a decision.
           </p>
         </div>
       )}
@@ -78,6 +86,11 @@ export function ApprovalsPanel({ domain }: { domain: Domain }) {
                 {domainDisplayName(item.domain)}
                 {item.meta ? ` · ${item.meta}` : ""}
               </div>
+              {item.body?.trim() ? (
+                <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-[rgba(153,27,27,0.1)] bg-white/60 px-2 py-1.5 text-[11px] leading-snug text-risk-text/90">
+                  {item.body.trim()}
+                </p>
+              ) : null}
               {item.status === "pending" && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <button

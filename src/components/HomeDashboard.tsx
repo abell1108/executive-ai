@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import type { Domain } from "@/lib/types";
 import { domainDisplayName } from "@/lib/domain-label";
@@ -9,6 +9,12 @@ import {
   formatUpdatedAt,
   useLiveRefresh,
 } from "@/hooks/useLiveRefresh";
+import {
+  countPendingApprovals,
+  getApprovalQueueServerSnapshot,
+  getApprovalQueueSnapshot,
+  subscribeApprovalQueue,
+} from "@/lib/approval-queue";
 import { CollisionBanner } from "./CollisionBanner";
 import { ReviewNotificationsBanner } from "./ReviewNotificationsBanner";
 import { useTriageRemovedMap } from "@/hooks/useTriageStatus";
@@ -285,8 +291,12 @@ export function HomeDashboard() {
 
   const updatedLabel = formatUpdatedAt(lastRefreshedAt);
 
-  // Approvals stay empty until real outbound drafts exist (no seed fallbacks).
-  const [approvalCount] = useState(0);
+  const approvalItems = useSyncExternalStore(
+    subscribeApprovalQueue,
+    getApprovalQueueSnapshot,
+    getApprovalQueueServerSnapshot,
+  );
+  const approvalCount = countPendingApprovals(approvalItems);
 
   const summary = useMemo(() => {
     const parts: { text: string; highlight?: boolean }[] = [];

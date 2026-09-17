@@ -53,6 +53,11 @@ export interface ApprovalItem {
   meta: string;
   domain: Domain;
   status?: ApprovalStatus;
+  /** Draft body (decision / reply text). */
+  body?: string;
+  from?: string;
+  triageId?: string;
+  updatedAt?: string;
 }
 
 export interface CalendarPill {

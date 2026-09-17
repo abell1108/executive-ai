@@ -6,6 +6,11 @@ import { TriageStatusPill } from "./TriageStatusPill";
 import { domainDisplayName } from "@/lib/domain-label";
 import { useTriageOverlay, useTriageStatus } from "@/hooks/useTriageStatus";
 import { applyTriageOverlay } from "@/lib/triage-overlay";
+import {
+  approvalIdFromTriage,
+  upsertApprovalItem,
+} from "@/lib/approval-queue";
+import type { Domain } from "@/lib/types";
 
 type DetailResponse = {
   item?: ModalTriageItem;
@@ -40,6 +45,7 @@ export function TriageDetailModal({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
   const [draftDecision, setDraftDecision] = useState("");
+  const [queueConfirm, setQueueConfirm] = useState<string | null>(null);
 
   const [overlay, setOverlay] = useTriageOverlay(item?.id);
   const [status] = useTriageStatus(item?.id);
@@ -77,6 +83,7 @@ export function TriageDetailModal({
       setLiveNotes(undefined);
       setLoadingNotes(false);
       setEditing(false);
+      setQueueConfirm(null);
       return;
     }
 
@@ -152,6 +159,57 @@ export function TriageDetailModal({
     });
     setEditing(false);
   };
+
+  const previewSnippet = (text: string, max = 80): string => {
+    const one = text.replace(/\s+/g, " ").trim();
+    if (one.length <= max) return one;
+    return `${one.slice(0, max - 1)}…`;
+  };
+
+  const sendToApprovalQueue = (decision: string, titleOverride?: string) => {
+    if (!item.id) return;
+    const body = decision.trim();
+    if (!body) return;
+    const subject = (titleOverride ?? displayed.title).trim() || item.title;
+    const replyTitle = subject.toLowerCase().startsWith("re:")
+      ? subject
+      : `Re: ${subject}`;
+    const sender = fromShort(item.from, item.meta);
+    const metaParts = [
+      sender ? `To: ${sender}` : null,
+      previewSnippet(body),
+    ].filter(Boolean);
+    const domain =
+      item.domain !== "All" ? item.domain : ("TPFI" as Exclude<Domain, "All">);
+    upsertApprovalItem({
+      id: approvalIdFromTriage(item.id),
+      title: replyTitle,
+      meta: metaParts.join(" · "),
+      domain,
+      status: "pending",
+      body,
+      from: item.from || sender || undefined,
+      triageId: item.id,
+    });
+    setQueueConfirm("Added to Approval Queue — Approve still does not send.");
+    window.setTimeout(() => setQueueConfirm(null), 3500);
+  };
+
+  const saveAndQueue = () => {
+    if (!item.id) return;
+    const body = draftDecision.trim();
+    if (!body) return;
+    setOverlay({
+      title: draftTitle.trim(),
+      notes: draftNotes,
+      decisionResponse: draftDecision,
+    });
+    setEditing(false);
+    sendToApprovalQueue(body, draftTitle.trim() || displayed.title);
+  };
+
+  const canQueueSaved = Boolean(item.id) && Boolean(decisionText);
+  const canQueueDraft = Boolean(item.id) && draftDecision.trim().length > 0;
 
   return (
     <div
@@ -301,6 +359,14 @@ export function TriageDetailModal({
               </button>
               <button
                 type="button"
+                onClick={saveAndQueue}
+                disabled={!canQueueDraft}
+                className="inline-flex items-center rounded-full border border-risk-text/40 bg-risk-bg px-4 py-2 text-xs font-bold text-risk-text shadow-sm hover:border-risk-text disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                Save &amp; send to Approval Queue
+              </button>
+              <button
+                type="button"
                 onClick={cancelEdit}
                 className="inline-flex items-center rounded-full border border-[rgba(27,54,68,0.14)] bg-white px-4 py-2 text-xs font-semibold text-navy shadow-sm hover:border-teal hover:text-teal"
               >
@@ -308,6 +374,34 @@ export function TriageDetailModal({
               </button>
             </div>
           )}
+
+          {!editing && canEditFields && (
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => sendToApprovalQueue(decisionText || "")}
+                disabled={!canQueueSaved}
+                className="inline-flex w-fit items-center rounded-full border border-risk-text/40 bg-risk-bg px-4 py-2 text-xs font-bold text-risk-text shadow-sm hover:border-risk-text disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                Send to Approval Queue
+              </button>
+              {queueConfirm ? (
+                <p className="text-[11px] font-semibold text-teal" role="status">
+                  {queueConfirm}
+                </p>
+              ) : !canQueueSaved ? (
+                <p className="text-[10px] text-navy/45">
+                  Save a decision / response first, then queue it for your OK.
+                </p>
+              ) : null}
+            </div>
+          )}
+
+          {editing && queueConfirm ? (
+            <p className="text-[11px] font-semibold text-teal" role="status">
+              {queueConfirm}
+            </p>
+          ) : null}
 
           {openUrl && (
             <a
